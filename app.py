@@ -3,9 +3,28 @@ import os
 import time
 from datetime import datetime
 from io import BytesIO
-from dotenv import load_dotenv
 
-load_dotenv()
+# ========== FIX: Secrets + .env Support ==========
+try:
+    # Streamlit Cloud Secrets
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    # Local .env file
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    except:
+        GROQ_API_KEY = None
+
+if not GROQ_API_KEY:
+    st.error("""
+    ❌ **GROQ_API_KEY not found!**
+    
+    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
+    **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    """)
+    st.stop()
 
 st.set_page_config(
     page_title="AI Email Assistant Pro",
@@ -20,7 +39,7 @@ st.markdown("""
 .stApp { background: #0e1117; }
 .stSidebar { background: #1a1a2e; }
 
-/* ========== SIDEBAR - JESA HAI WESA ========== */
+/* ========== SIDEBAR ========== */
 .stSidebar .stMarkdown, .stSidebar .stText, 
 .stSidebar label, .stSidebar h1, .stSidebar h2, .stSidebar h3, 
 .stSidebar h4, .stSidebar .stCaption, .stSidebar p,
@@ -28,73 +47,65 @@ st.markdown("""
 .stSidebar .stRadio > label, .stSidebar .stCheckbox > label {
     color: #ffffff !important;
 }
-/* SIDEBAR INPUT FIELDS */
 .stSidebar .stTextInput > div > div > input {
     background: #2d2d44 !important;
-    color: #000000 !important;
+    color: #ffffff !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 .stSidebar .stTextInput > div > div > input::placeholder {
-    color: #666 !important;
+    color: #888 !important;
 }
 .stSidebar .stSelectbox > div > div > select {
     background: #2d2d44 !important;
-    color: #000000 !important;
+    color: #ffffff !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 .stSidebar .stSelectbox > div > div > select option {
     background: #2d2d44 !important;
-    color: #000000 !important;
+    color: #ffffff !important;
 }
 .stSidebar .stRadio > div > label {
-    color: #000000 !important;
+    color: #ffffff !important;
 }
 .stSidebar .stCheckbox > label {
-    color: #000000 !important;
+    color: #ffffff !important;
 }
-
-/* SIDEBAR BUTTONS */
 .stSidebar .stButton > button {
     background: #2d2d44 !important;
-    color: #000000 !important;
+    color: #ffffff !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 10px 20px !important;
     font-weight: 500 !important;
-    transition: all 0.3s ease !important;
 }
 .stSidebar .stButton > button:hover {
     background: #3d3d5c !important;
     border-color: #ff4b4b !important;
 }
-
-/* SIDEBAR DIVIDER */
 .stSidebar hr {
     border-color: #444 !important;
     margin: 15px 0 !important;
 }
-
-/* SIDEBAR SUCCESS/ERROR */
 .stSidebar .stSuccess {
     background: rgba(0, 200, 0, 0.1) !important;
     border: 1px solid #00cc00 !important;
     border-radius: 10px !important;
     padding: 12px !important;
-    color: #000000 !important;
+    color: #00cc00 !important;
 }
 .stSidebar .stError {
     background: rgba(255, 0, 0, 0.1) !important;
     border: 1px solid #ff4444 !important;
     border-radius: 10px !important;
     padding: 12px !important;
-    color: #000000 !important;
+    color: #ff4444 !important;
 }
 
-/* ========== FRONT (MAIN CONTENT) - SAB WHITE ========== */
+/* ========== FRONT (MAIN CONTENT) ========== */
 .stApp, .stApp viewport, .stApp .main,
 .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
 .stTextInput > label, .stSelectbox > label, .stTextArea > label,
@@ -104,8 +115,6 @@ st.markdown("""
 h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     color: #ffffff !important;
 }
-
-/* FRONT INPUT FIELDS */
 .stTextInput > div > div > input {
     background: #2d2d44 !important;
     color: #ffffff !important;
@@ -145,8 +154,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
 .stCheckbox > label {
     color: #ffffff !important;
 }
-
-/* FRONT BUTTONS */
 .stButton > button {
     background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
     color: white !important;
@@ -161,8 +168,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 20px rgba(255, 75, 75, 0.4) !important;
 }
-
-/* DOWNLOAD BUTTONS */
 .stDownloadButton > button {
     background: linear-gradient(135deg, #2d6a4f, #40916c) !important;
     color: white !important;
@@ -175,8 +180,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     transform: translateY(-2px) !important;
     box-shadow: 0 4px 15px rgba(45, 106, 79, 0.4) !important;
 }
-
-/* FRONT TABS */
 .stTabs [data-baseweb="tab-list"] {
     background: #1a1a2e !important;
     border-radius: 12px !important;
@@ -202,8 +205,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
 .stTabs [aria-selected="true"] button {
     color: #ffffff !important;
 }
-
-/* FRONT EXPANDER */
 .stExpander {
     background: #1a1a2e !important;
     border: 1px solid #333 !important;
@@ -216,8 +217,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
 .stExpander .streamlit-expanderContent {
     color: #e0e0e0 !important;
 }
-
-/* FRONT METRIC */
 .stMetric {
     background: #1a1a2e !important;
     border-radius: 12px !important;
@@ -233,8 +232,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     font-size: 24px !important;
     font-weight: 700 !important;
 }
-
-/* API STATUS */
 .api-status {
     display: inline-block;
     padding: 6px 14px;
@@ -252,8 +249,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     color: #ff4444;
     border: 1px solid #ff4444;
 }
-
-/* FRONT INFO/WARNING/SUCCESS/ERROR */
 .stInfo {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid #444 !important;
@@ -290,8 +285,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
 .stWarning .stMarkdown {
     color: #ffcc00 !important;
 }
-
-/* DIVIDER */
 hr {
     border-color: #333 !important;
     margin: 20px 0 !important;
@@ -299,13 +292,9 @@ hr {
 .stCaption {
     color: #888 !important;
 }
-
-/* Generated Output */
 .stMarkdown {
     color: #e0e0e0 !important;
 }
-
-/* Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -337,35 +326,28 @@ if 'selected_model_id' not in st.session_state:
 groq_available = False
 client = None
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-if not GROQ_API_KEY:
+try:
+    from groq import Groq
+    client = Groq(api_key=GROQ_API_KEY)
+    
+    test_response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": "Hello"}],
+        max_tokens=5
+    )
+    groq_available = True
     st.sidebar.markdown("""
-    <div class="api-status disconnected">❌ No API Key</div>
+    <div class="api-status connected">✅ Groq Connected</div>
     """, unsafe_allow_html=True)
-else:
-    try:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        
-        test_response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": "Hello"}],
-            max_tokens=5
-        )
-        groq_available = True
-        st.sidebar.markdown("""
-        <div class="api-status connected">✅ Groq Connected</div>
-        """, unsafe_allow_html=True)
-    except Exception as e:
-        st.sidebar.markdown(f"""
-        <div class="api-status disconnected">❌ API Error</div>
-        """, unsafe_allow_html=True)
-        groq_available = False
+except Exception as e:
+    st.sidebar.markdown(f"""
+    <div class="api-status disconnected">❌ API Error: {str(e)[:30]}</div>
+    """, unsafe_allow_html=True)
+    groq_available = False
 
 def generate_with_groq(prompt):
     if not groq_available or client is None:
-        return "❌ API not available. Please check your GROQ_API_KEY in .env file."
+        return "❌ API not available. Please check your GROQ_API_KEY."
     
     try:
         model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
@@ -417,7 +399,7 @@ with st.sidebar:
         st.caption(f"Model: {selected_model_name}")
     else:
         st.error("❌ No API Connection")
-        st.caption("Please set GROQ_API_KEY in .env file")
+        st.caption("Check Secrets or .env file")
     
     st.markdown("---")
     
@@ -443,8 +425,8 @@ if not groq_available:
     ❌ **API Not Connected!**
     
     Please follow these steps:
-    1. Create a `.env` file in the project root
-    2. Add: `GROQ_API_KEY=your_api_key_here`
+    1. **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
+    2. **For Cloud:** Add secrets in Streamlit Cloud dashboard
     3. Get API key from: [console.groq.com](https://console.groq.com)
     4. Restart the app
     """)
