@@ -4,25 +4,43 @@ import time
 from datetime import datetime
 from io import BytesIO
 
-# ========== FIX: Secrets + .env Support ==========
-try:
-    # Streamlit Cloud Secrets
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-except:
-    # Local .env file
+# ========== FIX: SECRETS + .ENV SUPPORT (IMPROVED) ==========
+def get_api_key():
+    """Get API key from secrets or .env"""
+    # Try Streamlit Cloud Secrets first
+    try:
+        if hasattr(st, 'secrets') and st.secrets:
+            if "GROQ_API_KEY" in st.secrets:
+                key = st.secrets["GROQ_API_KEY"]
+                if key:
+                    return key
+    except:
+        pass
+    
+    # Try .env file for local development
     try:
         from dotenv import load_dotenv
         load_dotenv()
-        GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        key = os.getenv("GROQ_API_KEY")
+        if key:
+            return key
     except:
-        GROQ_API_KEY = None
+        pass
+    
+    return None
+
+GROQ_API_KEY = get_api_key()
 
 if not GROQ_API_KEY:
     st.error("""
     ❌ **GROQ_API_KEY not found!**
     
-    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
     **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    1. Go to App Settings → Secrets
+    2. Add: `GROQ_API_KEY = "your_key_here"`
+    3. Save and Reboot
+    
+    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
     """)
     st.stop()
 
@@ -322,14 +340,18 @@ if 'current_action' not in st.session_state:
 if 'selected_model_id' not in st.session_state:
     st.session_state.selected_model_id = "llama-3.3-70b-versatile"
 
-# ========== API SETUP ==========
+# ========== FIX: API SETUP WITH SIMPLE CLIENT ==========
 groq_available = False
 client = None
 
 try:
     from groq import Groq
+    
+    # ========== FIX: SIMPLE CLIENT INITIALIZATION ==========
+    # No extra parameters - just api_key
     client = Groq(api_key=GROQ_API_KEY)
     
+    # Test connection with correct model
     test_response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": "Hello"}],
@@ -339,11 +361,43 @@ try:
     st.sidebar.markdown("""
     <div class="api-status connected">✅ Groq Connected</div>
     """, unsafe_allow_html=True)
-except Exception as e:
-    st.sidebar.markdown(f"""
-    <div class="api-status disconnected">❌ API Error: {str(e)[:30]}</div>
+    
+except ImportError as e:
+    st.sidebar.markdown("""
+    <div class="api-status disconnected">❌ Groq module not installed</div>
     """, unsafe_allow_html=True)
     groq_available = False
+    
+except Exception as e:
+    error_msg = str(e)
+    if "proxies" in error_msg:
+        st.sidebar.markdown("""
+        <div class="api-status disconnected">❌ Proxy error - using fallback</div>
+        """, unsafe_allow_html=True)
+        # Try fallback
+        try:
+            import httpx
+            http_client = httpx.Client()
+            client = Groq(api_key=GROQ_API_KEY, http_client=http_client)
+            test_response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": "Hello"}],
+                max_tokens=5
+            )
+            groq_available = True
+            st.sidebar.markdown("""
+            <div class="api-status connected">✅ Groq Connected (fallback)</div>
+            """, unsafe_allow_html=True)
+        except:
+            st.sidebar.markdown(f"""
+            <div class="api-status disconnected">❌ API Error: {error_msg[:50]}</div>
+            """, unsafe_allow_html=True)
+            groq_available = False
+    else:
+        st.sidebar.markdown(f"""
+        <div class="api-status disconnected">❌ API Error: {error_msg[:50]}</div>
+        """, unsafe_allow_html=True)
+        groq_available = False
 
 def generate_with_groq(prompt):
     if not groq_available or client is None:
@@ -425,8 +479,8 @@ if not groq_available:
     ❌ **API Not Connected!**
     
     Please follow these steps:
-    1. **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
-    2. **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    1. **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    2. **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
     3. Get API key from: [console.groq.com](https://console.groq.com)
     4. Restart the app
     """)
