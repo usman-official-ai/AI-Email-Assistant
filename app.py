@@ -28,62 +28,70 @@ st.markdown("""
 .stSidebar .stRadio > label, .stSidebar .stCheckbox > label {
     color: #ffffff !important;
 }
+/* SIDEBAR INPUT FIELDS */
 .stSidebar .stTextInput > div > div > input {
     background: #2d2d44 !important;
-    color: #ffffff !important;
+    color: #000000 !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 .stSidebar .stTextInput > div > div > input::placeholder {
-    color: #888 !important;
+    color: #666 !important;
 }
 .stSidebar .stSelectbox > div > div > select {
     background: #2d2d44 !important;
-    color: #ffffff !important;
+    color: #000000 !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 .stSidebar .stSelectbox > div > div > select option {
     background: #2d2d44 !important;
-    color: #ffffff !important;
+    color: #000000 !important;
 }
 .stSidebar .stRadio > div > label {
-    color: #ffffff !important;
+    color: #000000 !important;
 }
 .stSidebar .stCheckbox > label {
-    color: #ffffff !important;
+    color: #000000 !important;
 }
+
+/* SIDEBAR BUTTONS */
 .stSidebar .stButton > button {
     background: #2d2d44 !important;
-    color: #ffffff !important;
+    color: #000000 !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 10px 20px !important;
     font-weight: 500 !important;
+    transition: all 0.3s ease !important;
 }
 .stSidebar .stButton > button:hover {
     background: #3d3d5c !important;
     border-color: #ff4b4b !important;
 }
+
+/* SIDEBAR DIVIDER */
 .stSidebar hr {
     border-color: #444 !important;
     margin: 15px 0 !important;
 }
+
+/* SIDEBAR SUCCESS/ERROR */
 .stSidebar .stSuccess {
     background: rgba(0, 200, 0, 0.1) !important;
     border: 1px solid #00cc00 !important;
     border-radius: 10px !important;
     padding: 12px !important;
-    color: #00cc00 !important;
+    color: #000000 !important;
 }
 .stSidebar .stError {
     background: rgba(255, 0, 0, 0.1) !important;
     border: 1px solid #ff4444 !important;
     border-radius: 10px !important;
     padding: 12px !important;
-    color: #ff4444 !important;
+    color: #000000 !important;
 }
 
 /* ========== FRONT (MAIN CONTENT) - SAB WHITE ========== */
