@@ -1,13 +1,13 @@
 import streamlit as st
 import os
 import time
+import json
 from datetime import datetime
 from io import BytesIO
+import requests
 
-# ========== FIX: SECRETS + .ENV SUPPORT (IMPROVED) ==========
+# ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
-    """Get API key from secrets or .env"""
-    # Try Streamlit Cloud Secrets first
     try:
         if hasattr(st, 'secrets') and st.secrets:
             if "GROQ_API_KEY" in st.secrets:
@@ -17,7 +17,6 @@ def get_api_key():
     except:
         pass
     
-    # Try .env file for local development
     try:
         from dotenv import load_dotenv
         load_dotenv()
@@ -53,11 +52,8 @@ st.set_page_config(
 # ========== DARK THEME ==========
 st.markdown("""
 <style>
-/* MAIN BACKGROUND */
 .stApp { background: #0e1117; }
 .stSidebar { background: #1a1a2e; }
-
-/* ========== SIDEBAR ========== */
 .stSidebar .stMarkdown, .stSidebar .stText, 
 .stSidebar label, .stSidebar h1, .stSidebar h2, .stSidebar h3, 
 .stSidebar h4, .stSidebar .stCaption, .stSidebar p,
@@ -72,25 +68,12 @@ st.markdown("""
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
-.stSidebar .stTextInput > div > div > input::placeholder {
-    color: #888 !important;
-}
 .stSidebar .stSelectbox > div > div > select {
     background: #2d2d44 !important;
     color: #ffffff !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
-}
-.stSidebar .stSelectbox > div > div > select option {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-}
-.stSidebar .stRadio > div > label {
-    color: #ffffff !important;
-}
-.stSidebar .stCheckbox > label {
-    color: #ffffff !important;
 }
 .stSidebar .stButton > button {
     background: #2d2d44 !important;
@@ -104,32 +87,11 @@ st.markdown("""
     background: #3d3d5c !important;
     border-color: #ff4b4b !important;
 }
-.stSidebar hr {
-    border-color: #444 !important;
-    margin: 15px 0 !important;
-}
-.stSidebar .stSuccess {
-    background: rgba(0, 200, 0, 0.1) !important;
-    border: 1px solid #00cc00 !important;
-    border-radius: 10px !important;
-    padding: 12px !important;
-    color: #00cc00 !important;
-}
-.stSidebar .stError {
-    background: rgba(255, 0, 0, 0.1) !important;
-    border: 1px solid #ff4444 !important;
-    border-radius: 10px !important;
-    padding: 12px !important;
-    color: #ff4444 !important;
-}
-
-/* ========== FRONT (MAIN CONTENT) ========== */
+.stSidebar hr { border-color: #444 !important; margin: 15px 0 !important; }
 .stApp, .stApp viewport, .stApp .main,
 .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
 .stTextInput > label, .stSelectbox > label, .stTextArea > label,
-.stRadio > label, .stCheckbox > label, .stNumberInput > label,
-.stSlider > label, .stDateInput > label, .stTimeInput > label,
-.stMultiSelect > label, .stFileUploader > label,
+.stRadio > label, .stCheckbox > label,
 h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     color: #ffffff !important;
 }
@@ -140,17 +102,11 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
-.stTextInput > div > div > input::placeholder {
-    color: #888 !important;
-}
 .stTextArea > div > div > textarea {
     background: #2d2d44 !important;
     color: #ffffff !important;
     border: 1px solid #444 !important;
     border-radius: 10px !important;
-}
-.stTextArea > div > div > textarea::placeholder {
-    color: #888 !important;
 }
 .stSelectbox > div > div > select {
     background: #2d2d44 !important;
@@ -159,19 +115,8 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     border-radius: 10px !important;
     padding: 12px 16px !important;
 }
-.stSelectbox > div > div > select option {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-}
-.stRadio > div > label {
-    color: #ffffff !important;
-}
-.stRadio > div > label > div > p {
-    color: #ffffff !important;
-}
-.stCheckbox > label {
-    color: #ffffff !important;
-}
+.stRadio > div > label { color: #ffffff !important; }
+.stCheckbox > label { color: #ffffff !important; }
 .stButton > button {
     background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
     color: white !important;
@@ -179,7 +124,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     border-radius: 10px !important;
     padding: 12px 28px !important;
     font-weight: 600 !important;
-    transition: all 0.3s ease !important;
     box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3) !important;
 }
 .stButton > button:hover {
@@ -194,22 +138,16 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     padding: 10px 20px !important;
     font-weight: 500 !important;
 }
-.stDownloadButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 15px rgba(45, 106, 79, 0.4) !important;
-}
 .stTabs [data-baseweb="tab-list"] {
     background: #1a1a2e !important;
     border-radius: 12px !important;
     padding: 6px !important;
-    gap: 4px !important;
 }
 .stTabs [data-baseweb="tab"] {
     color: #8899aa !important;
     border-radius: 8px !important;
     padding: 10px 24px !important;
     font-weight: 500 !important;
-    transition: all 0.3s ease !important;
 }
 .stTabs [data-baseweb="tab"]:hover {
     background: rgba(255, 75, 75, 0.1) !important;
@@ -220,36 +158,20 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     color: #ffffff !important;
     box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3) !important;
 }
-.stTabs [aria-selected="true"] button {
-    color: #ffffff !important;
-}
 .stExpander {
     background: #1a1a2e !important;
     border: 1px solid #333 !important;
     border-radius: 12px !important;
 }
-.stExpander .streamlit-expanderHeader {
-    color: #ffffff !important;
-    font-weight: 500 !important;
-}
-.stExpander .streamlit-expanderContent {
-    color: #e0e0e0 !important;
-}
+.stExpander .streamlit-expanderHeader { color: #ffffff !important; font-weight: 500 !important; }
 .stMetric {
     background: #1a1a2e !important;
     border-radius: 12px !important;
     padding: 16px !important;
     border: 1px solid #333 !important;
 }
-.stMetric label {
-    color: #ffffff !important;
-    font-weight: 500 !important;
-}
-.stMetric .stMarkdown {
-    color: #ff4b4b !important;
-    font-size: 24px !important;
-    font-weight: 700 !important;
-}
+.stMetric label { color: #ffffff !important; font-weight: 500 !important; }
+.stMetric .stMarkdown { color: #ff4b4b !important; font-size: 24px !important; font-weight: 700 !important; }
 .api-status {
     display: inline-block;
     padding: 6px 14px;
@@ -267,66 +189,17 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
     color: #ff4444;
     border: 1px solid #ff4444;
 }
-.stInfo {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 16px !important;
-}
-.stInfo .stMarkdown {
-    color: #aaaaaa !important;
-}
-.stSuccess {
-    background: rgba(0, 200, 0, 0.1) !important;
-    border: 1px solid #00cc00 !important;
-    border-radius: 10px !important;
-    padding: 16px !important;
-}
-.stSuccess .stMarkdown {
-    color: #00cc00 !important;
-}
-.stError {
-    background: rgba(255, 0, 0, 0.1) !important;
-    border: 1px solid #ff4444 !important;
-    border-radius: 10px !important;
-    padding: 16px !important;
-}
-.stError .stMarkdown {
-    color: #ff4444 !important;
-}
-.stWarning {
-    background: rgba(255, 200, 0, 0.1) !important;
-    border: 1px solid #ffcc00 !important;
-    border-radius: 10px !important;
-    padding: 16px !important;
-}
-.stWarning .stMarkdown {
-    color: #ffcc00 !important;
-}
-hr {
-    border-color: #333 !important;
-    margin: 20px 0 !important;
-}
-.stCaption {
-    color: #888 !important;
-}
-.stMarkdown {
-    color: #e0e0e0 !important;
-}
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-::-webkit-scrollbar-track {
-    background: #1a1a2e;
-}
-::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #666;
-}
+.stSuccess { background: rgba(0, 200, 0, 0.1) !important; border: 1px solid #00cc00 !important; border-radius: 10px !important; padding: 16px !important; }
+.stSuccess .stMarkdown { color: #00cc00 !important; }
+.stError { background: rgba(255, 0, 0, 0.1) !important; border: 1px solid #ff4444 !important; border-radius: 10px !important; padding: 16px !important; }
+.stError .stMarkdown { color: #ff4444 !important; }
+.stWarning { background: rgba(255, 200, 0, 0.1) !important; border: 1px solid #ffcc00 !important; border-radius: 10px !important; padding: 16px !important; }
+.stWarning .stMarkdown { color: #ffcc00 !important; }
+hr { border-color: #333 !important; margin: 20px 0 !important; }
+.stCaption { color: #888 !important; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #1a1a2e; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -340,81 +213,70 @@ if 'current_action' not in st.session_state:
 if 'selected_model_id' not in st.session_state:
     st.session_state.selected_model_id = "llama-3.3-70b-versatile"
 
-# ========== FIX: API SETUP WITH SIMPLE CLIENT ==========
+# ========== FIX: DIRECT API CALL - NO GROQ LIBRARY ==========
 groq_available = False
-client = None
 
-try:
-    from groq import Groq
-    
-    # ========== FIX: SIMPLE CLIENT INITIALIZATION ==========
-    # No extra parameters - just api_key
-    client = Groq(api_key=GROQ_API_KEY)
-    
-    # Test connection with correct model
-    test_response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": "Hello"}],
-        max_tokens=5
-    )
-    groq_available = True
-    st.sidebar.markdown("""
-    <div class="api-status connected">✅ Groq Connected</div>
-    """, unsafe_allow_html=True)
-    
-except ImportError as e:
-    st.sidebar.markdown("""
-    <div class="api-status disconnected">❌ Groq module not installed</div>
-    """, unsafe_allow_html=True)
-    groq_available = False
-    
-except Exception as e:
-    error_msg = str(e)
-    if "proxies" in error_msg:
-        st.sidebar.markdown("""
-        <div class="api-status disconnected">❌ Proxy error - using fallback</div>
-        """, unsafe_allow_html=True)
-        # Try fallback
-        try:
-            import httpx
-            http_client = httpx.Client()
-            client = Groq(api_key=GROQ_API_KEY, http_client=http_client)
-            test_response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": "Hello"}],
-                max_tokens=5
-            )
-            groq_available = True
-            st.sidebar.markdown("""
-            <div class="api-status connected">✅ Groq Connected (fallback)</div>
-            """, unsafe_allow_html=True)
-        except:
-            st.sidebar.markdown(f"""
-            <div class="api-status disconnected">❌ API Error: {error_msg[:50]}</div>
-            """, unsafe_allow_html=True)
-            groq_available = False
-    else:
-        st.sidebar.markdown(f"""
-        <div class="api-status disconnected">❌ API Error: {error_msg[:50]}</div>
-        """, unsafe_allow_html=True)
-        groq_available = False
-
-def generate_with_groq(prompt):
-    if not groq_available or client is None:
-        return "❌ API not available. Please check your GROQ_API_KEY."
-    
+def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
+    """Direct API call to Groq using requests - no library issues"""
     try:
-        model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
+        url = "https://api.groq.com/openai/v1/chat/completions"
         
-        response = client.chat.completions.create(
-            model=model_to_use,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=2048
-        )
-        return response.choices[0].message.content
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a professional email assistant with expertise in business communication, grammar, and writing styles."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 2048,
+            "top_p": 1
+        }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=60)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+        else:
+            return f"❌ API Error: {response.status_code} - {response.text}"
+            
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
+# Test API connection
+try:
+    test_result = call_groq_api("Hello, respond with 'OK'", "llama-3.3-70b-versatile")
+    if "Error" not in test_result:
+        groq_available = True
+        st.sidebar.markdown("""
+        <div class="api-status connected">✅ Groq Connected</div>
+        """, unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown("""
+        <div class="api-status disconnected">❌ API Error</div>
+        """, unsafe_allow_html=True)
+except:
+    st.sidebar.markdown("""
+    <div class="api-status disconnected">❌ API Error</div>
+    """, unsafe_allow_html=True)
+
+def generate_with_groq(prompt):
+    if not groq_available:
+        return "⚠️ API not available. Please check your GROQ_API_KEY."
+    
+    model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
+    return call_groq_api(prompt, model_to_use)
 
 # ========== SIDEBAR ==========
 with st.sidebar:
@@ -452,8 +314,8 @@ with st.sidebar:
         st.caption(f"Key: {GROQ_API_KEY[:8]}...{GROQ_API_KEY[-4:]}")
         st.caption(f"Model: {selected_model_name}")
     else:
-        st.error("❌ No API Connection")
-        st.caption("Check Secrets or .env file")
+        st.warning("⚠️ API Not Connected")
+        st.caption("Check API key in Secrets")
     
     st.markdown("---")
     
@@ -475,16 +337,15 @@ st.markdown("# ✉️ AI Email Assistant Pro")
 st.markdown("Write, improve, and reply to emails professionally using AI")
 
 if not groq_available:
-    st.error("""
-    ❌ **API Not Connected!**
+    st.warning("""
+    ⚠️ **API Not Connected**
     
-    Please follow these steps:
-    1. **For Cloud:** Add secrets in Streamlit Cloud dashboard
-    2. **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
-    3. Get API key from: [console.groq.com](https://console.groq.com)
-    4. Restart the app
+    Please add `GROQ_API_KEY` in Streamlit Cloud Secrets.
+    
+    1. Go to App Settings → Secrets
+    2. Add: `GROQ_API_KEY = "your_key_here"`
+    3. Save and Reboot
     """)
-    st.stop()
 
 # ========== TABS ==========
 t1, t2, t3, t4, t5 = st.tabs(["📝 Write & Reply", "🔧 Grammar", "🎭 Tone", "📏 Length", "📌 More"])
@@ -523,12 +384,15 @@ with t1:
             if not email_input.strip():
                 st.warning("⚠️ Please enter or paste an email first!")
             else:
-                with st.spinner(f"Generating reply with {selected_model_name}..."):
-                    prompt = f"Generate a {reply_type} reply for this email:\n\n{email_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "reply"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Generating reply with {selected_model_name}..."):
+                        prompt = f"Generate a {reply_type} reply for this email:\n\n{email_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "reply"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Generated Reply")
@@ -587,12 +451,15 @@ with t2:
             if not grammar_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                with st.spinner(f"Correcting grammar with {selected_model_name}..."):
-                    prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{grammar_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "grammar"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Correcting grammar with {selected_model_name}..."):
+                        prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{grammar_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "grammar"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Corrected Email")
@@ -642,12 +509,15 @@ with t3:
             if not tone_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                with st.spinner(f"Changing tone with {selected_model_name}..."):
-                    prompt = f"Rewrite this email in a {selected_tone} tone. Keep the core message but adjust the language:\n\n{tone_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "tone"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Changing tone with {selected_model_name}..."):
+                        prompt = f"Rewrite this email in a {selected_tone} tone. Keep the core message but adjust the language:\n\n{tone_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "tone"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Transformed Email")
@@ -696,34 +566,43 @@ with t4:
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    with st.spinner(f"Shortening with {selected_model_name}..."):
-                        prompt = f"Create a short, concise version of this email. Keep only the essential information:\n\n{length_input}"
-                        result = generate_with_groq(prompt)
-                        st.session_state.generated_email = result
-                        st.session_state.current_action = "shorten"
-                        st.rerun()
+                    if not groq_available:
+                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    else:
+                        with st.spinner(f"Shortening with {selected_model_name}..."):
+                            prompt = f"Create a short, concise version of this email. Keep only the essential information:\n\n{length_input}"
+                            result = generate_with_groq(prompt)
+                            st.session_state.generated_email = result
+                            st.session_state.current_action = "shorten"
+                            st.rerun()
         with col_b:
             if st.button("📐 Medium", use_container_width=True):
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    with st.spinner(f"Creating medium version with {selected_model_name}..."):
-                        prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{length_input}"
-                        result = generate_with_groq(prompt)
-                        st.session_state.generated_email = result
-                        st.session_state.current_action = "medium"
-                        st.rerun()
+                    if not groq_available:
+                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    else:
+                        with st.spinner(f"Creating medium version with {selected_model_name}..."):
+                            prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{length_input}"
+                            result = generate_with_groq(prompt)
+                            st.session_state.generated_email = result
+                            st.session_state.current_action = "medium"
+                            st.rerun()
         with col_c:
             if st.button("📑 Detailed", use_container_width=True):
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    with st.spinner(f"Expanding with {selected_model_name}..."):
-                        prompt = f"Create a detailed, expanded version of this email. Add relevant details and explanations:\n\n{length_input}"
-                        result = generate_with_groq(prompt)
-                        st.session_state.generated_email = result
-                        st.session_state.current_action = "expand"
-                        st.rerun()
+                    if not groq_available:
+                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    else:
+                        with st.spinner(f"Expanding with {selected_model_name}..."):
+                            prompt = f"Create a detailed, expanded version of this email. Add relevant details and explanations:\n\n{length_input}"
+                            result = generate_with_groq(prompt)
+                            st.session_state.generated_email = result
+                            st.session_state.current_action = "expand"
+                            st.rerun()
     
     with col2:
         st.markdown("### 📤 Adjusted Email")
@@ -764,12 +643,15 @@ with t5:
             if not subject_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                with st.spinner(f"Generating subjects with {selected_model_name}..."):
-                    prompt = f"Generate 5 professional subject lines for this email:\n\n{subject_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "subject"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Generating subjects with {selected_model_name}..."):
+                        prompt = f"Generate 5 professional subject lines for this email:\n\n{subject_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "subject"
+                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 💡 Improvement Tips")
@@ -778,12 +660,15 @@ with t5:
             if not tips_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                with st.spinner(f"Generating tips with {selected_model_name}..."):
-                    prompt = f"Provide improvement suggestions for this email including grammar, readability, tone, and professional wording:\n\n{tips_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "tips"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Generating tips with {selected_model_name}..."):
+                        prompt = f"Provide improvement suggestions for this email including grammar, readability, tone, and professional wording:\n\n{tips_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "tips"
+                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 🌐 Translate")
@@ -793,12 +678,15 @@ with t5:
             if not translate_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                with st.spinner(f"Translating with {selected_model_name}..."):
-                    prompt = f"Translate this email to {lang}:\n\n{translate_input}"
-                    result = generate_with_groq(prompt)
-                    st.session_state.generated_email = result
-                    st.session_state.current_action = "translate"
-                    st.rerun()
+                if not groq_available:
+                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                else:
+                    with st.spinner(f"Translating with {selected_model_name}..."):
+                        prompt = f"Translate this email to {lang}:\n\n{translate_input}"
+                        result = generate_with_groq(prompt)
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "translate"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Output")
