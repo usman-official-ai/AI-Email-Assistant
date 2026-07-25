@@ -38,8 +38,6 @@ if not GROQ_API_KEY:
     1. Go to App Settings → Secrets
     2. Add: `GROQ_API_KEY = "your_key_here"`
     3. Save and Reboot
-    
-    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
     """)
     st.stop()
 
@@ -203,7 +201,7 @@ hr { border-color: #333 !important; margin: 20px 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== SESSION STATE ==========
+# ========== SESSION STATE - FIX ==========
 if 'email_content' not in st.session_state:
     st.session_state.email_content = ""
 if 'generated_email' not in st.session_state:
@@ -212,12 +210,48 @@ if 'current_action' not in st.session_state:
     st.session_state.current_action = ""
 if 'selected_model_id' not in st.session_state:
     st.session_state.selected_model_id = "llama-3.3-70b-versatile"
+if 'groq_available' not in st.session_state:
+    st.session_state.groq_available = False
+if 'api_error' not in st.session_state:
+    st.session_state.api_error = None
 
-# ========== FIX: DIRECT API CALL - NO GROQ LIBRARY ==========
-groq_available = False
+# ========== FIX: API CONNECTION CHECK - ONLY ONCE ==========
+def check_api_connection():
+    """Check API connection once and store in session state"""
+    if st.session_state.groq_available:
+        return True
+    
+    try:
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "user", "content": "OK"}],
+            "max_tokens": 5
+        }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        
+        if response.status_code == 200:
+            st.session_state.groq_available = True
+            st.session_state.api_error = None
+            return True
+        else:
+            st.session_state.groq_available = False
+            st.session_state.api_error = f"API Error: {response.status_code}"
+            return False
+            
+    except Exception as e:
+        st.session_state.groq_available = False
+        st.session_state.api_error = str(e)
+        return False
 
+# ========== API CALL FUNCTION ==========
 def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
-    """Direct API call to Groq using requests - no library issues"""
+    """Direct API call to Groq using requests"""
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -248,35 +282,24 @@ def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
         if response.status_code == 200:
             result = response.json()
             return result["choices"][0]["message"]["content"]
+        elif response.status_code == 401:
+            return "❌ Invalid API Key! Please check your GROQ_API_KEY in Secrets."
+        elif response.status_code == 429:
+            return "❌ Rate limit exceeded! Please wait a moment and try again."
         else:
-            return f"❌ API Error: {response.status_code} - {response.text}"
+            return f"❌ API Error: {response.status_code}"
             
+    except requests.exceptions.Timeout:
+        return "❌ Request timeout! Please try again."
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# Test API connection
-try:
-    test_result = call_groq_api("Hello, respond with 'OK'", "llama-3.3-70b-versatile")
-    if "Error" not in test_result:
-        groq_available = True
-        st.sidebar.markdown("""
-        <div class="api-status connected">✅ Groq Connected</div>
-        """, unsafe_allow_html=True)
-    else:
-        st.sidebar.markdown("""
-        <div class="api-status disconnected">❌ API Error</div>
-        """, unsafe_allow_html=True)
-except:
-    st.sidebar.markdown("""
-    <div class="api-status disconnected">❌ API Error</div>
-    """, unsafe_allow_html=True)
-
 def generate_with_groq(prompt):
-    if not groq_available:
-        return "⚠️ API not available. Please check your GROQ_API_KEY."
-    
     model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
     return call_groq_api(prompt, model_to_use)
+
+# ========== CHECK API CONNECTION ==========
+is_connected = check_api_connection()
 
 # ========== SIDEBAR ==========
 with st.sidebar:
@@ -309,13 +332,15 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### 🔑 API Status")
-    if groq_available:
+    if is_connected:
         st.success("✅ Connected to Groq API")
         st.caption(f"Key: {GROQ_API_KEY[:8]}...{GROQ_API_KEY[-4:]}")
         st.caption(f"Model: {selected_model_name}")
     else:
-        st.warning("⚠️ API Not Connected")
-        st.caption("Check API key in Secrets")
+        st.error("❌ API Not Connected")
+        if st.session_state.api_error:
+            st.caption(f"Error: {st.session_state.api_error}")
+        st.caption("Check your GROQ_API_KEY in Secrets")
     
     st.markdown("---")
     
@@ -336,14 +361,14 @@ with st.sidebar:
 st.markdown("# ✉️ AI Email Assistant Pro")
 st.markdown("Write, improve, and reply to emails professionally using AI")
 
-if not groq_available:
+if not is_connected:
     st.warning("""
     ⚠️ **API Not Connected**
     
-    Please add `GROQ_API_KEY` in Streamlit Cloud Secrets.
+    Please check your `GROQ_API_KEY` in Streamlit Cloud Secrets.
     
     1. Go to App Settings → Secrets
-    2. Add: `GROQ_API_KEY = "your_key_here"`
+    2. Verify key is correct: `GROQ_API_KEY = "gsk_..."`
     3. Save and Reboot
     """)
 
@@ -384,8 +409,8 @@ with t1:
             if not email_input.strip():
                 st.warning("⚠️ Please enter or paste an email first!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Generating reply with {selected_model_name}..."):
                         prompt = f"Generate a {reply_type} reply for this email:\n\n{email_input}"
@@ -451,8 +476,8 @@ with t2:
             if not grammar_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Correcting grammar with {selected_model_name}..."):
                         prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{grammar_input}"
@@ -509,8 +534,8 @@ with t3:
             if not tone_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Changing tone with {selected_model_name}..."):
                         prompt = f"Rewrite this email in a {selected_tone} tone. Keep the core message but adjust the language:\n\n{tone_input}"
@@ -566,8 +591,8 @@ with t4:
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    if not groq_available:
-                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    if not is_connected:
+                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                     else:
                         with st.spinner(f"Shortening with {selected_model_name}..."):
                             prompt = f"Create a short, concise version of this email. Keep only the essential information:\n\n{length_input}"
@@ -580,8 +605,8 @@ with t4:
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    if not groq_available:
-                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    if not is_connected:
+                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                     else:
                         with st.spinner(f"Creating medium version with {selected_model_name}..."):
                             prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{length_input}"
@@ -594,8 +619,8 @@ with t4:
                 if not length_input.strip():
                     st.warning("⚠️ Please enter an email!")
                 else:
-                    if not groq_available:
-                        st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                    if not is_connected:
+                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                     else:
                         with st.spinner(f"Expanding with {selected_model_name}..."):
                             prompt = f"Create a detailed, expanded version of this email. Add relevant details and explanations:\n\n{length_input}"
@@ -643,8 +668,8 @@ with t5:
             if not subject_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Generating subjects with {selected_model_name}..."):
                         prompt = f"Generate 5 professional subject lines for this email:\n\n{subject_input}"
@@ -660,8 +685,8 @@ with t5:
             if not tips_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Generating tips with {selected_model_name}..."):
                         prompt = f"Provide improvement suggestions for this email including grammar, readability, tone, and professional wording:\n\n{tips_input}"
@@ -678,8 +703,8 @@ with t5:
             if not translate_input.strip():
                 st.warning("⚠️ Please enter an email!")
             else:
-                if not groq_available:
-                    st.error("❌ API not connected. Please add GROQ_API_KEY in Secrets.")
+                if not is_connected:
+                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Translating with {selected_model_name}..."):
                         prompt = f"Translate this email to {lang}:\n\n{translate_input}"
@@ -723,7 +748,7 @@ st.caption(f"✉️ AI Email Assistant Pro | Powered by Groq API | Model: {selec
 with st.expander("ℹ️ System Status"):
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Groq API", "✅ Connected" if groq_available else "❌ Disconnected")
+        st.metric("Groq API", "✅ Connected" if is_connected else "❌ Disconnected")
     with c2:
         st.metric("Model", selected_model_name)
     with c3:
