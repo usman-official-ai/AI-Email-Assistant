@@ -201,7 +201,7 @@ hr { border-color: #333 !important; margin: 20px 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== SESSION STATE - FIX ==========
+# ========== SESSION STATE ==========
 if 'email_content' not in st.session_state:
     st.session_state.email_content = ""
 if 'generated_email' not in st.session_state:
@@ -214,12 +214,14 @@ if 'groq_available' not in st.session_state:
     st.session_state.groq_available = False
 if 'api_error' not in st.session_state:
     st.session_state.api_error = None
+if 'api_checked' not in st.session_state:
+    st.session_state.api_checked = False
 
-# ========== FIX: API CONNECTION CHECK - ONLY ONCE ==========
+# ========== API CONNECTION CHECK - ONLY ONCE ==========
 def check_api_connection():
     """Check API connection once and store in session state"""
-    if st.session_state.groq_available:
-        return True
+    if st.session_state.api_checked:
+        return st.session_state.groq_available
     
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -238,16 +240,16 @@ def check_api_connection():
         if response.status_code == 200:
             st.session_state.groq_available = True
             st.session_state.api_error = None
-            return True
         else:
             st.session_state.groq_available = False
             st.session_state.api_error = f"API Error: {response.status_code}"
-            return False
             
     except Exception as e:
         st.session_state.groq_available = False
         st.session_state.api_error = str(e)
-        return False
+    
+    st.session_state.api_checked = True
+    return st.session_state.groq_available
 
 # ========== API CALL FUNCTION ==========
 def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
@@ -355,7 +357,6 @@ with st.sidebar:
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_content = content
-            st.rerun()
 
 # ========== MAIN CONTENT ==========
 st.markdown("# ✉️ AI Email Assistant Pro")
@@ -417,7 +418,6 @@ with t1:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "reply"
-                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Generated Reply")
@@ -484,7 +484,6 @@ with t2:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "grammar"
-                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Corrected Email")
@@ -542,7 +541,6 @@ with t3:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "tone"
-                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Transformed Email")
@@ -599,7 +597,6 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "shorten"
-                            st.rerun()
         with col_b:
             if st.button("📐 Medium", use_container_width=True):
                 if not length_input.strip():
@@ -613,7 +610,6 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "medium"
-                            st.rerun()
         with col_c:
             if st.button("📑 Detailed", use_container_width=True):
                 if not length_input.strip():
@@ -627,7 +623,6 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "expand"
-                            st.rerun()
     
     with col2:
         st.markdown("### 📤 Adjusted Email")
@@ -676,7 +671,6 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "subject"
-                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 💡 Improvement Tips")
@@ -693,7 +687,6 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "tips"
-                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 🌐 Translate")
@@ -711,7 +704,6 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "translate"
-                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Output")
