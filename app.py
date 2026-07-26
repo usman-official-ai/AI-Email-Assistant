@@ -62,7 +62,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ========== DARK THEME (ONLY DARK) ==========
+# ========== DARK THEME ==========
 st.markdown("""
 <style>
 .stApp { background: #0a0a0f; }
@@ -154,7 +154,6 @@ def check_api_connection():
     return st.session_state.groq_available
 
 def call_groq_api(prompt, model="llama-3.1-8b-instant"):
-    # ========== RATE LIMIT PROTECTION ==========
     current_time = time.time()
     if current_time - st.session_state.last_api_call < 3:
         st.warning("⏳ Please wait a few seconds between requests.")
@@ -243,7 +242,6 @@ with st.sidebar:
     
     st.divider()
     
-    # ========== TEMPLATES ==========
     st.markdown("### 📝 Templates")
     
     templates = {
@@ -300,7 +298,6 @@ Best regards,
     
     st.divider()
     
-    # ========== HISTORY ==========
     st.markdown("### 📜 Email History")
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state.email_history = []
@@ -330,7 +327,6 @@ st.markdown("Write, reply, correct, and polish your emails in seconds.")
 if not is_connected:
     st.warning("⚠️ API not connected. Please check your GROQ_API_KEY.")
 
-# ========== MODE SELECTION ==========
 mode = st.radio(
     "What do you want to do?",
     ["Write a new email", "Reply to an email", "Improve / edit an existing email"],
@@ -340,7 +336,6 @@ mode = st.radio(
 left, right = st.columns([1, 1])
 
 with left:
-    # ========== WRITE MODE ==========
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         input_text = st.text_area(
@@ -384,7 +379,6 @@ Email:"""
                     elif result:
                         st.error(result)
 
-    # ========== REPLY MODE ==========
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
         input_text = st.text_area(
@@ -437,7 +431,6 @@ Reply:"""
                     elif result:
                         st.error(result)
 
-    # ========== IMPROVE MODE ==========
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
         input_text = st.text_area(
@@ -541,10 +534,8 @@ Suggestions:"""
                         elif result:
                             st.error(result)
     
-    # ========== ADDITIONAL FEATURES ==========
     st.divider()
     
-    # ========== SUBJECT LINE GENERATOR ==========
     st.markdown("### 🏷️ Subject Line Generator")
     if st.button("Generate Subject Lines (3-5)", use_container_width=True):
         source_text = st.session_state.generated_email or input_text if 'input_text' in locals() else ""
@@ -566,7 +557,6 @@ Suggestions:"""
                 elif result:
                     st.error(result)
     
-    # ========== TRANSLATION ==========
     st.markdown("### 🌐 Translate Email")
     col_trans1, col_trans2 = st.columns([2, 1])
     with col_trans1:
@@ -601,7 +591,6 @@ Suggestions:"""
                     elif result:
                         st.error(result)
     
-    # ========== SENTIMENT ANALYSIS ==========
     st.markdown("### 📊 Sentiment Analysis")
     sentiment_input = st.text_area(
         "Email to analyze:",
@@ -647,32 +636,16 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== FIX: COPY BUTTON 100% WORKING ==========
+        # ========== FIX: COPY BUTTON WITH PYPERCLIP ==========
         with col_a:
-            copy_text = st.session_state.generated_email
-            copy_button_html = f"""
-            <button onclick="navigator.clipboard.writeText(`{copy_text.replace('`', '\\`')}`)" 
-                    style="background:linear-gradient(135deg,#ff4b4b,#ff6b6b);
-                           color:white;border:none;border-radius:12px;
-                           padding:12px 28px;font-weight:600;cursor:pointer;
-                           width:100%;font-size:15px;
-                           box-shadow:0 4px 20px rgba(255,75,75,0.25);">
-                📋 Copy
-            </button>
-            <div id="copy-status-{int(time.time())}" style="text-align:center;color:#00cc00;font-size:13px;margin-top:5px;display:none;">
-                ✅ Copied to clipboard!
-            </div>
-            <script>
-            document.querySelector('button[onclick*="clipboard"]').addEventListener('click', function() {{
-                var status = document.getElementById('copy-status-{int(time.time())}');
-                status.style.display = 'block';
-                setTimeout(function() {{
-                    status.style.display = 'none';
-                }}, 2000);
-            }});
-            </script>
-            """
-            st.components.v1.html(copy_button_html, height=80)
+            if st.button("📋 Copy", use_container_width=True):
+                try:
+                    pyperclip.copy(st.session_state.generated_email)
+                    st.success("✅ Copied to clipboard!")
+                except Exception as e:
+                    # Fallback: Show code block to copy manually
+                    st.warning("⚠️ Copy not available. Please select and copy manually.")
+                    st.code(st.session_state.generated_email, language="text")
         
         with col_b:
             st.download_button(
