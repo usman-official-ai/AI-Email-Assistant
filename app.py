@@ -296,15 +296,12 @@ def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# ========== FIX: generate_with_groq WITH PROPER PROMPT ==========
 def generate_with_groq(prompt):
-    """Generate response using Groq API"""
     if not st.session_state.groq_available:
         return "❌ API not connected. Please check your GROQ_API_KEY in Secrets."
     
     model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
     
-    # ========== FIX: Make sure prompt is properly formatted ==========
     if not prompt or not prompt.strip():
         return "❌ Please provide a valid prompt."
     
@@ -441,7 +438,6 @@ with t1:
             key="tab1_reply"
         )
         
-        # ========== FIX: Generate Reply Button with Debug ==========
         if st.button("🚀 Generate Reply", use_container_width=True, type="primary"):
             if not email_input.strip():
                 st.warning("⚠️ Please enter or paste an email first!")
@@ -450,7 +446,6 @@ with t1:
                     st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
                 else:
                     with st.spinner(f"Generating reply with {selected_model_name}..."):
-                        # ========== FIX: Proper prompt building ==========
                         prompt = f"""Generate a professional {reply_type} reply for the following email.
 
 Original Email:
@@ -466,7 +461,6 @@ Reply:"""
                         
                         result = generate_with_groq(prompt)
                         
-                        # Check if result is error
                         if result.startswith("❌"):
                             st.error(result)
                         else:
@@ -820,7 +814,7 @@ with t5:
         else:
             st.info("👈 Use features to see output here")
 
-# ========== FOOTER ==========
+# ========== FOOTER - FIXED ==========
 st.divider()
 st.caption(f"✉️ AI Email Assistant Pro | Powered by Groq API | Model: {selected_model_name}")
 
@@ -831,4 +825,6 @@ with st.expander("ℹ️ System Status"):
     with c2:
         st.metric("Model", selected_model_name)
     with c3:
-        st.metric("PDF Export", "✅ Available
+        st.metric("PDF Export", "✅ Available")
+    with c4:
+        st.metric("Theme", "🌙 Dark Mode")
