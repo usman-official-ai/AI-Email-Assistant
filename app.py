@@ -6,23 +6,27 @@ from datetime import datetime
 from io import BytesIO
 import requests
 
+# ========== DARK/LIGHT MODE TOGGLE ==========
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'dark'
+
+def toggle_theme():
+    st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
+    st.rerun()
+
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
     try:
         if hasattr(st, 'secrets') and st.secrets:
             if "GROQ_API_KEY" in st.secrets:
-                key = st.secrets["GROQ_API_KEY"]
-                if key:
-                    return key
+                return st.secrets["GROQ_API_KEY"]
     except:
         pass
     
     try:
         from dotenv import load_dotenv
         load_dotenv()
-        key = os.getenv("GROQ_API_KEY")
-        if key:
-            return key
+        return os.getenv("GROQ_API_KEY")
     except:
         pass
     
@@ -35,191 +39,149 @@ if not GROQ_API_KEY:
     ❌ **GROQ_API_KEY not found!**
     
     **For Cloud:** Add secrets in Streamlit Cloud dashboard
-    1. Go to App Settings → Secrets
-    2. Add: `GROQ_API_KEY = "your_key_here"`
-    3. Save and Reboot
+    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
     """)
     st.stop()
 
 st.set_page_config(
-    page_title="AI Email Assistant Pro",
-    page_icon="✉️",
+    page_title="AI Email Assistant",
+    page_icon="📧",
     layout="wide"
 )
 
-# ========== DARK THEME ==========
-st.markdown("""
-<style>
-.stApp { background: #0e1117; }
-.stSidebar { background: #1a1a2e; }
-.stSidebar .stMarkdown, .stSidebar .stText, 
-.stSidebar label, .stSidebar h1, .stSidebar h2, .stSidebar h3, 
-.stSidebar h4, .stSidebar .stCaption, .stSidebar p,
-.stSidebar .stTextInput > label, .stSidebar .stSelectbox > label,
-.stSidebar .stRadio > label, .stSidebar .stCheckbox > label {
-    color: #ffffff !important;
-}
-.stSidebar .stTextInput > div > div > input {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-}
-.stSidebar .stSelectbox > div > div > select {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-}
-.stSidebar .stButton > button {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 10px 20px !important;
-    font-weight: 500 !important;
-}
-.stSidebar .stButton > button:hover {
-    background: #3d3d5c !important;
-    border-color: #ff4b4b !important;
-}
-.stSidebar hr { border-color: #444 !important; margin: 15px 0 !important; }
-.stApp, .stApp viewport, .stApp .main,
-.stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
-.stTextInput > label, .stSelectbox > label, .stTextArea > label,
-.stRadio > label, .stCheckbox > label,
-h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader {
-    color: #ffffff !important;
-}
-.stTextInput > div > div > input {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-}
-.stTextArea > div > div > textarea {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-}
-.stSelectbox > div > div > select {
-    background: #2d2d44 !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-}
-.stRadio > div > label { color: #ffffff !important; }
-.stCheckbox > label { color: #ffffff !important; }
-.stButton > button {
-    background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 12px 28px !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3) !important;
-}
-.stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(255, 75, 75, 0.4) !important;
-}
-.stDownloadButton > button {
-    background: linear-gradient(135deg, #2d6a4f, #40916c) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 10px 20px !important;
-    font-weight: 500 !important;
-}
-.stTabs [data-baseweb="tab-list"] {
-    background: #1a1a2e !important;
-    border-radius: 12px !important;
-    padding: 6px !important;
-}
-.stTabs [data-baseweb="tab"] {
-    color: #8899aa !important;
-    border-radius: 8px !important;
-    padding: 10px 24px !important;
-    font-weight: 500 !important;
-}
-.stTabs [data-baseweb="tab"]:hover {
-    background: rgba(255, 75, 75, 0.1) !important;
-    color: #ffffff !important;
-}
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3) !important;
-}
-.stExpander {
-    background: #1a1a2e !important;
-    border: 1px solid #333 !important;
-    border-radius: 12px !important;
-}
-.stExpander .streamlit-expanderHeader { color: #ffffff !important; font-weight: 500 !important; }
-.stMetric {
-    background: #1a1a2e !important;
-    border-radius: 12px !important;
-    padding: 16px !important;
-    border: 1px solid #333 !important;
-}
-.stMetric label { color: #ffffff !important; font-weight: 500 !important; }
-.stMetric .stMarkdown { color: #ff4b4b !important; font-size: 24px !important; font-weight: 700 !important; }
-.api-status {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-}
-.api-status.connected {
-    background: rgba(0, 200, 0, 0.15);
-    color: #00cc00;
-    border: 1px solid #00cc00;
-}
-.api-status.disconnected {
-    background: rgba(255, 0, 0, 0.15);
-    color: #ff4444;
-    border: 1px solid #ff4444;
-}
-.stSuccess { background: rgba(0, 200, 0, 0.1) !important; border: 1px solid #00cc00 !important; border-radius: 10px !important; padding: 16px !important; }
-.stSuccess .stMarkdown { color: #00cc00 !important; }
-.stError { background: rgba(255, 0, 0, 0.1) !important; border: 1px solid #ff4444 !important; border-radius: 10px !important; padding: 16px !important; }
-.stError .stMarkdown { color: #ff4444 !important; }
-.stWarning { background: rgba(255, 200, 0, 0.1) !important; border: 1px solid #ffcc00 !important; border-radius: 10px !important; padding: 16px !important; }
-.stWarning .stMarkdown { color: #ffcc00 !important; }
-hr { border-color: #333 !important; margin: 20px 0 !important; }
-.stCaption { color: #888 !important; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #1a1a2e; }
-::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-</style>
-""", unsafe_allow_html=True)
+# ========== THEME CSS ==========
+if st.session_state.theme == 'dark':
+    st.markdown("""
+    <style>
+    .stApp { background: #0a0a0f; }
+    .stSidebar { background: #111118; border-right: 1px solid #1a1a2e; }
+    h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #ffffff !important; }
+    .stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
+    .stTextInput > label, .stSelectbox > label, .stTextArea > label,
+    .stRadio > label, .stCheckbox > label { color: #ffffff !important; }
+    .stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #ffffff !important; }
+    .stTextInput > div > div > input {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+        padding: 14px 18px !important;
+    }
+    .stTextArea > div > div > textarea {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+    }
+    .stSelectbox > div > div > select {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: white !important; border: none !important;
+        border-radius: 12px !important; padding: 12px 28px !important;
+        font-weight: 600 !important; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.25) !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 30px rgba(255, 75, 75, 0.35) !important;
+    }
+    .stDownloadButton > button {
+        background: #1a1a2e !important; color: white !important;
+        border: 1px solid #2a2a44 !important; border-radius: 10px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: #111118 !important; border-radius: 12px !important;
+        padding: 4px !important; border: 1px solid #1a1a2e !important;
+    }
+    .stTabs [data-baseweb="tab"] { color: #8899aa !important; border-radius: 8px !important; padding: 10px 20px !important; }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: #ffffff !important;
+    }
+    .stExpander { background: #111118 !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
+    .stMetric { background: #111118 !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #1a1a2e !important; }
+    .stMetric label { color: #8899aa !important; }
+    .stMetric .stMarkdown { color: #ffffff !important; }
+    hr { border-color: #1a1a2e !important; }
+    .stCaption { color: #555 !important; }
+    .stInfo { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 4px; }
+    .output-box { background: #111118; border: 1px solid #1a1a2e; border-radius: 12px; padding: 20px; margin: 10px 0; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp { background: #f5f5f7; }
+    .stSidebar { background: #ffffff; border-right: 1px solid #e0e0e0; }
+    h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !important; }
+    .stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
+    .stTextInput > label, .stSelectbox > label, .stTextArea > label,
+    .stRadio > label, .stCheckbox > label { color: #1a1a1a !important; }
+    .stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #1a1a1a !important; }
+    .stTextInput > div > div > input {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+        padding: 14px 18px !important;
+    }
+    .stTextArea > div > div > textarea {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+    }
+    .stSelectbox > div > div > select {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: white !important; border: none !important;
+        border-radius: 12px !important; padding: 12px 28px !important;
+        font-weight: 600 !important;
+    }
+    .stDownloadButton > button {
+        background: #f0f0f0 !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 10px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: #f0f0f0 !important; border-radius: 12px !important;
+        padding: 4px !important; border: 1px solid #e0e0e0 !important;
+    }
+    .stTabs [data-baseweb="tab"] { color: #666 !important; border-radius: 8px !important; padding: 10px 20px !important; }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: #ffffff !important;
+    }
+    .stExpander { background: #ffffff !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
+    .stMetric { background: #ffffff !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #e0e0e0 !important; }
+    .stMetric label { color: #666 !important; }
+    .stMetric .stMarkdown { color: #1a1a1a !important; }
+    hr { border-color: #e0e0e0 !important; }
+    .stCaption { color: #888 !important; }
+    .stInfo { background: rgba(0,0,0,0.02) !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f5f5f7; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 4px; }
+    .output-box { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin: 10px 0; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ========== SESSION STATE ==========
-if 'email_content' not in st.session_state:
-    st.session_state.email_content = ""
+if 'email_input' not in st.session_state:
+    st.session_state.email_input = ""
 if 'generated_email' not in st.session_state:
     st.session_state.generated_email = ""
 if 'current_action' not in st.session_state:
     st.session_state.current_action = ""
 if 'selected_model_id' not in st.session_state:
-    st.session_state.selected_model_id = "llama-3.3-70b-versatile"
+    st.session_state.selected_model_id = "llama-3.1-8b-instant"
 if 'groq_available' not in st.session_state:
     st.session_state.groq_available = False
-if 'api_error' not in st.session_state:
-    st.session_state.api_error = None
 if 'api_checked' not in st.session_state:
     st.session_state.api_checked = False
-if 'template_clicked' not in st.session_state:
-    st.session_state.template_clicked = False
+if 'email_history' not in st.session_state:
+    st.session_state.email_history = []
 
-# ========== API CONNECTION CHECK - ONLY ONCE ==========
+# ========== API SETUP ==========
 def check_api_connection():
     if st.session_state.api_checked:
         return st.session_state.groq_available
@@ -231,7 +193,7 @@ def check_api_connection():
             "Content-Type": "application/json"
         }
         data = {
-            "model": "llama-3.3-70b-versatile",
+            "model": "llama-3.1-8b-instant",
             "messages": [{"role": "user", "content": "OK"}],
             "max_tokens": 5
         }
@@ -240,20 +202,16 @@ def check_api_connection():
         
         if response.status_code == 200:
             st.session_state.groq_available = True
-            st.session_state.api_error = None
         else:
             st.session_state.groq_available = False
-            st.session_state.api_error = f"API Error: {response.status_code}"
             
     except Exception as e:
         st.session_state.groq_available = False
-        st.session_state.api_error = str(e)
     
     st.session_state.api_checked = True
     return st.session_state.groq_available
 
-# ========== API CALL FUNCTION ==========
-def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
+def call_groq_api(prompt, model="llama-3.1-8b-instant"):
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -284,44 +242,52 @@ def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
         if response.status_code == 200:
             result = response.json()
             return result["choices"][0]["message"]["content"]
-        elif response.status_code == 401:
-            return "❌ Invalid API Key! Please check your GROQ_API_KEY in Secrets."
         elif response.status_code == 429:
-            return "❌ Rate limit exceeded! Please wait a moment and try again."
+            return "❌ Rate limit exceeded! Please wait 5-10 minutes."
+        elif response.status_code == 401:
+            return "❌ Invalid API Key! Please check your GROQ_API_KEY."
         else:
             return f"❌ API Error: {response.status_code}"
             
-    except requests.exceptions.Timeout:
-        return "❌ Request timeout! Please try again."
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
 def generate_with_groq(prompt):
     if not st.session_state.groq_available:
-        return "❌ API not connected. Please check your GROQ_API_KEY in Secrets."
+        return "❌ API not connected. Please check your GROQ_API_KEY."
     
-    model_to_use = st.session_state.get('selected_model_id', 'llama-3.3-70b-versatile')
+    model_to_use = st.session_state.get('selected_model_id', 'llama-3.1-8b-instant')
     
     if not prompt or not prompt.strip():
         return "❌ Please provide a valid prompt."
     
     return call_groq_api(prompt, model_to_use)
 
-# ========== CHECK API CONNECTION ==========
 is_connected = check_api_connection()
 
 # ========== SIDEBAR ==========
 with st.sidebar:
-    st.markdown("## ⚙️ Settings")
-    st.markdown("---")
+    st.markdown("# 📧 AI Email Assistant")
+    st.caption("Write, reply, correct, and polish your emails.")
     
-    st.markdown("### 🤖 Model Selection")
+    # ========== DARK/LIGHT MODE TOGGLE ==========
+    st.divider()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🌙 Dark", use_container_width=True):
+            st.session_state.theme = 'dark'
+            st.rerun()
+    with col2:
+        if st.button("☀️ Light", use_container_width=True):
+            st.session_state.theme = 'light'
+            st.rerun()
     
+    st.divider()
+    
+    st.markdown("### 🤖 Model")
     model_options = {
-        "Llama 3.3 70B (Best Quality)": "llama-3.3-70b-versatile",
+        "Llama 3.3 70B (Best)": "llama-3.3-70b-versatile",
         "Llama 3.1 8B (Fast)": "llama-3.1-8b-instant",
-        "Llama 3 70B": "llama3-70b-8192",
-        "Llama 3 8B (Fastest)": "llama3-8b-8192",
         "Gemma 2 9B": "gemma2-9b-it"
     }
     
@@ -332,31 +298,13 @@ with st.sidebar:
     )
     st.session_state.selected_model_id = model_options[selected_model_name]
     
-    st.markdown("---")
+    st.divider()
     
-    st.markdown("### ✉️ Email Settings")
-    sender_name = st.text_input("Your Name", placeholder="e.g., John Doe")
-    default_tone = st.selectbox("Default Tone", ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"])
-    
-    st.markdown("---")
-    
-    st.markdown("### 🔑 API Status")
-    if is_connected:
-        st.success("✅ Connected to Groq API")
-        st.caption(f"Key: {GROQ_API_KEY[:8]}...{GROQ_API_KEY[-4:]}")
-        st.caption(f"Model: {selected_model_name}")
-    else:
-        st.error("❌ API Not Connected")
-        if st.session_state.api_error:
-            st.caption(f"Error: {st.session_state.api_error}")
-        st.caption("Check your GROQ_API_KEY in Secrets")
-    
-    st.markdown("---")
-    
-    st.markdown("### 📝 Quick Templates")
+    # ========== EMAIL TEMPLATES (5) ==========
+    st.markdown("### 📝 Templates")
     
     templates = {
-        "📧 Job Application": """Subject: Application for Position
+        "📧 Job": """Subject: Application for Position
 
 Dear Hiring Manager,
 
@@ -364,7 +312,7 @@ I am writing to apply for the position at your company. With my experience and s
 
 Best regards,
 [Your Name]""",
-        "🏖️ Leave Request": """Subject: Leave Request
+        "🏖️ Leave": """Subject: Leave Request
 
 Dear Manager,
 
@@ -372,11 +320,31 @@ I am writing to request leave from [start date] to [end date]. Please approve my
 
 Regards,
 [Your Name]""",
-        "📄 Business Proposal": """Subject: Business Proposal
+        "📄 Proposal": """Subject: Business Proposal
 
 Dear [Name],
 
 I hope this email finds you well. I am writing to propose a collaboration between our companies.
+
+Best regards,
+[Your Name]""",
+        "🙏 Thank You": """Subject: Thank You
+
+Dear [Name],
+
+I wanted to express my sincere gratitude for your support and guidance.
+
+Thank you once again.
+
+Best regards,
+[Your Name]""",
+        "👋 Follow-up": """Subject: Follow-up
+
+Dear [Name],
+
+I hope this email finds you well. I am writing to follow up on our previous conversation.
+
+Looking forward to your response.
 
 Best regards,
 [Your Name]"""
@@ -384,447 +352,398 @@ Best regards,
     
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
-            st.session_state.email_content = content
-            st.session_state.template_clicked = True
+            st.session_state.email_input = content
             st.rerun()
+    
+    st.divider()
+    
+    # ========== EMAIL HISTORY ==========
+    st.markdown("### 📜 Email History")
+    if st.button("🗑️ Clear History", use_container_width=True):
+        st.session_state.email_history = []
+        st.rerun()
+    
+    if st.session_state.email_history:
+        st.caption(f"📊 {len(st.session_state.email_history)} entries")
+        for entry in st.session_state.email_history[-5:]:
+            st.caption(f"🕐 {entry['timestamp']} - {entry['action']}")
+    
+    st.divider()
+    
+    st.markdown("### 🔑 API Status")
+    if is_connected:
+        st.success("✅ Connected")
+    else:
+        st.error("❌ Not Connected")
+    
+    st.divider()
+    st.caption("Built with Streamlit + Groq")
 
 # ========== MAIN CONTENT ==========
-st.markdown("# ✉️ AI Email Assistant Pro")
-st.markdown("Write, improve, and reply to emails professionally using AI")
+st.markdown("# 📧 AI Email Assistant")
+st.markdown("Write, reply, correct, and polish your emails in seconds.")
 
 if not is_connected:
-    st.warning("""
-    ⚠️ **API Not Connected**
-    
-    Please check your `GROQ_API_KEY` in Streamlit Cloud Secrets.
-    
-    1. Go to App Settings → Secrets
-    2. Verify key is correct: `GROQ_API_KEY = "gsk_..."`
-    3. Save and Reboot
-    """)
+    st.warning("⚠️ API not connected. Please check your GROQ_API_KEY.")
 
-# ========== TABS ==========
-t1, t2, t3, t4, t5 = st.tabs(["📝 Write & Reply", "🔧 Grammar", "🎭 Tone", "📏 Length", "📌 More"])
+# ========== MODE SELECTION ==========
+mode = st.radio(
+    "What do you want to do?",
+    ["Write a new email", "Reply to an email", "Improve / edit an existing email"],
+    horizontal=True,
+)
 
-# ========== TAB 1: Write & Reply ==========
-with t1:
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 📝 Input Email")
-        
-        input_method = st.radio("Choose:", ["📋 Paste Email", "✍️ Write New"], horizontal=True)
-        
-        if input_method == "📋 Paste Email":
-            email_input = st.text_area(
-                "Paste your email:",
-                height=250,
-                placeholder="Paste the email content here...",
-                key="tab1_paste",
-                value=st.session_state.email_content if st.session_state.template_clicked else ""
-            )
-        else:
-            email_input = st.text_area(
-                "Write your email:",
-                height=250,
-                placeholder="Write your email content here...",
-                key="tab1_write",
-                value=st.session_state.email_content if st.session_state.template_clicked else ""
-            )
-        
-        reply_type = st.selectbox(
-            "Reply Type:",
-            ["general", "accept_meeting", "decline_politely", "request_info", "thank_you", "follow_up"],
-            key="tab1_reply"
+left, right = st.columns([1, 1])
+
+with left:
+    # ========== WRITE MODE ==========
+    if mode == "Write a new email":
+        st.markdown("### ✍️ What's the email about?")
+        input_text = st.text_area(
+            "Describe the topic, purpose, or bullet points for your email",
+            height=150,
+            placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
+            key="input_new",
+            value=st.session_state.email_input if st.session_state.email_input else ""
         )
-        
-        if st.button("🚀 Generate Reply", use_container_width=True, type="primary"):
-            if not email_input.strip():
-                st.warning("⚠️ Please enter or paste an email first!")
+
+        col_tone, col_length = st.columns(2)
+        with col_tone:
+            tone = st.selectbox("Tone", ["Professional", "Friendly", "Formal", "Casual", "Persuasive", "Confident", "Apologetic"], index=0)
+        with col_length:
+            length = st.selectbox("Length", ["Short", "Medium", "Detailed"], index=1)
+
+        if st.button("✨ Generate Email", type="primary", use_container_width=True):
+            if not input_text.strip():
+                st.warning("Please describe what the email should be about.")
             else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                else:
-                    with st.spinner(f"Generating reply with {selected_model_name}..."):
-                        prompt = f"""Generate a professional {reply_type} reply for the following email.
+                with st.spinner("Drafting your email..."):
+                    prompt = f"""Write a professional email based on the following description.
 
-Original Email:
-{email_input}
+Topic: {input_text}
+Tone: {tone}
+Length: {length}
 
-Instructions:
-- Reply type: {reply_type}
-- Keep it professional and concise
-- Be polite and respectful
-- Include appropriate subject line
+Write a complete email with subject line, greeting, body, and sign-off.
+
+Email:"""
+                    result = generate_with_groq(prompt)
+                    if result.startswith("❌"):
+                        st.error(result)
+                    else:
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "write"
+                        # Save to history
+                        st.session_state.email_history.insert(0, {
+                            "timestamp": datetime.now().strftime("%H:%M"),
+                            "action": "Write Email",
+                            "content": result[:100] + "..."
+                        })
+                        st.rerun()
+
+    # ========== REPLY MODE (5 TYPES) ==========
+    elif mode == "Reply to an email":
+        st.markdown("### 📨 Paste the email you're replying to")
+        input_text = st.text_area(
+            "Original email",
+            height=150,
+            placeholder="Paste the email you received here...",
+            key="input_reply",
+            value=st.session_state.email_input if st.session_state.email_input else ""
+        )
+
+        reply_type = st.selectbox(
+            "Reply type",
+            ["General", "Accept Meeting", "Decline Politely", "Request More Info", "Thank You", "Follow-up"],
+            index=0
+        )
+
+        col_tone, col_length = st.columns(2)
+        with col_tone:
+            tone = st.selectbox("Tone", ["Professional", "Friendly", "Formal", "Casual", "Persuasive", "Confident", "Apologetic"], index=0, key="reply_tone")
+        with col_length:
+            length = st.selectbox("Length", ["Short", "Medium", "Detailed"], index=1, key="reply_length")
+
+        if st.button("↩️ Generate Reply", type="primary", use_container_width=True):
+            if not input_text.strip():
+                st.warning("Please paste the original email first.")
+            else:
+                with st.spinner("Writing your reply..."):
+                    prompt = f"""Write a reply to the following email.
+
+Original email:
+{input_text}
+
+Reply type: {reply_type}
+Tone: {tone}
+Length: {length}
+
+Write a complete email reply.
 
 Reply:"""
-                        
-                        result = generate_with_groq(prompt)
-                        
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
-                            st.session_state.generated_email = result
-                            st.session_state.current_action = "reply"
-                            st.rerun()
-    
-    with col2:
-        st.markdown("### 📤 Generated Reply")
-        if st.session_state.generated_email and st.session_state.current_action == "reply":
-            st.markdown("---")
-            st.markdown(st.session_state.generated_email)
-            st.markdown("---")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                if st.button("📋 Copy", use_container_width=True):
-                    try:
-                        import pyperclip
-                        pyperclip.copy(st.session_state.generated_email)
-                        st.success("✅ Copied!")
-                    except:
-                        st.error("Copy not available")
-            with col_b:
-                st.download_button(
-                    label="📄 TXT",
-                    data=st.session_state.generated_email,
-                    file_name=f"email_reply_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
-            with col_c:
-                try:
-                    from src.utils.pdf_export import create_pdf
-                    pdf_data = create_pdf(st.session_state.generated_email)
-                    st.download_button(
-                        label="📑 PDF",
-                        data=pdf_data,
-                        file_name=f"email_reply_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                except:
-                    st.button("📑 PDF", disabled=True, use_container_width=True)
-        else:
-            st.info("👈 Generate a reply to see it here")
+                    result = generate_with_groq(prompt)
+                    if result.startswith("❌"):
+                        st.error(result)
+                    else:
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "reply"
+                        st.session_state.email_history.insert(0, {
+                            "timestamp": datetime.now().strftime("%H:%M"),
+                            "action": f"Reply ({reply_type})",
+                            "content": result[:100] + "..."
+                        })
+                        st.rerun()
 
-# ========== TAB 2: Grammar ==========
-with t2:
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 🔧 Email to Correct")
-        grammar_input = st.text_area(
-            "Paste email with errors:",
-            height=250,
-            placeholder="Paste email with grammar, spelling, or punctuation errors...",
-            key="tab2_input"
+    # ========== IMPROVE MODE ==========
+    else:
+        st.markdown("### 🛠️ Paste the email you want to improve")
+        input_text = st.text_area(
+            "Your email draft",
+            height=150,
+            placeholder="Paste your draft email here...",
+            key="input_edit",
+            value=st.session_state.email_input if st.session_state.email_input else ""
         )
+
+        st.markdown("#### Actions")
+        col1, col2, col3, col4 = st.columns(4)
         
-        if st.button("✅ Correct Grammar", use_container_width=True, type="primary"):
-            if not grammar_input.strip():
-                st.warning("⚠️ Please enter an email!")
-            else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
+        with col1:
+            if st.button("✅ Fix Grammar", use_container_width=True):
+                if not input_text.strip():
+                    st.warning("Please paste an email first.")
                 else:
-                    with st.spinner(f"Correcting grammar with {selected_model_name}..."):
-                        prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{grammar_input}"
+                    with st.spinner("Fixing grammar..."):
+                        prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{input_text}"
                         result = generate_with_groq(prompt)
                         if result.startswith("❌"):
                             st.error(result)
                         else:
                             st.session_state.generated_email = result
                             st.session_state.current_action = "grammar"
+                            st.session_state.email_history.insert(0, {
+                                "timestamp": datetime.now().strftime("%H:%M"),
+                                "action": "Grammar Fix",
+                                "content": result[:100] + "..."
+                            })
                             st.rerun()
-    
-    with col2:
-        st.markdown("### 📤 Corrected Email")
-        if st.session_state.generated_email and st.session_state.current_action == "grammar":
-            st.markdown("---")
-            st.markdown(st.session_state.generated_email)
-            st.markdown("---")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                if st.button("📋 Copy", use_container_width=True):
-                    try:
-                        import pyperclip
-                        pyperclip.copy(st.session_state.generated_email)
-                        st.success("✅ Copied!")
-                    except:
-                        st.error("Copy not available")
-            with col_b:
-                st.download_button(label="📄 TXT", data=st.session_state.generated_email, file_name=f"corrected_{datetime.now().strftime('%Y%m%d_%H%M')}.txt", mime="text/plain", use_container_width=True)
-            with col_c:
-                try:
-                    from src.utils.pdf_export import create_pdf
-                    pdf_data = create_pdf(st.session_state.generated_email)
-                    st.download_button(label="📑 PDF", data=pdf_data, file_name=f"corrected_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
-                except:
-                    st.button("📑 PDF", disabled=True, use_container_width=True)
-        else:
-            st.info("👈 Correct grammar to see it here")
-
-# ========== TAB 3: Tone ==========
-with t3:
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 🎭 Email to Transform")
-        tone_input = st.text_area(
-            "Paste email:",
-            height=200,
-            placeholder="Paste email to change tone...",
-            key="tab3_input"
-        )
         
-        tone_options = ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"]
-        selected_tone = st.selectbox("Select Tone:", tone_options, key="tab3_tone")
-        
-        if st.button("🎭 Change Tone", use_container_width=True, type="primary"):
-            if not tone_input.strip():
-                st.warning("⚠️ Please enter an email!")
-            else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
+        with col2:
+            if st.button("🎭 Change Tone", use_container_width=True):
+                if not input_text.strip():
+                    st.warning("Please paste an email first.")
                 else:
-                    with st.spinner(f"Changing tone with {selected_model_name}..."):
-                        prompt = f"Rewrite this email in a {selected_tone} tone. Keep the core message but adjust the language:\n\n{tone_input}"
+                    with st.spinner("Changing tone..."):
+                        prompt = f"Rewrite this email in a professional tone. Keep the core message but adjust the language:\n\n{input_text}"
                         result = generate_with_groq(prompt)
                         if result.startswith("❌"):
                             st.error(result)
                         else:
                             st.session_state.generated_email = result
                             st.session_state.current_action = "tone"
+                            st.session_state.email_history.insert(0, {
+                                "timestamp": datetime.now().strftime("%H:%M"),
+                                "action": "Tone Change",
+                                "content": result[:100] + "..."
+                            })
+                            st.rerun()
+        
+        with col3:
+            if st.button("📏 Adjust Length", use_container_width=True):
+                if not input_text.strip():
+                    st.warning("Please paste an email first.")
+                else:
+                    with st.spinner("Adjusting length..."):
+                        # ========== MEDIUM VERSION ==========
+                        prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{input_text}"
+                        result = generate_with_groq(prompt)
+                        if result.startswith("❌"):
+                            st.error(result)
+                        else:
+                            st.session_state.generated_email = result
+                            st.session_state.current_action = "medium"
+                            st.session_state.email_history.insert(0, {
+                                "timestamp": datetime.now().strftime("%H:%M"),
+                                "action": "Medium Length",
+                                "content": result[:100] + "..."
+                            })
+                            st.rerun()
+        
+        with col4:
+            if st.button("💡 Improve", use_container_width=True):
+                if not input_text.strip():
+                    st.warning("Please paste an email first.")
+                else:
+                    with st.spinner("Analyzing..."):
+                        prompt = f"""Provide improvement suggestions for this email including:
+1. Grammar and spelling
+2. Readability and clarity
+3. Tone appropriateness
+4. Missing information
+5. Professional wording recommendations
+
+Email:
+{input_text}
+
+Suggestions:"""
+                        result = generate_with_groq(prompt)
+                        if result.startswith("❌"):
+                            st.error(result)
+                        else:
+                            st.session_state.generated_email = result
+                            st.session_state.current_action = "suggest"
+                            st.session_state.email_history.insert(0, {
+                                "timestamp": datetime.now().strftime("%H:%M"),
+                                "action": "Suggestions",
+                                "content": result[:100] + "..."
+                            })
                             st.rerun()
     
-    with col2:
-        st.markdown("### 📤 Transformed Email")
-        if st.session_state.generated_email and st.session_state.current_action == "tone":
-            st.markdown("---")
-            st.markdown(st.session_state.generated_email)
-            st.markdown("---")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                if st.button("📋 Copy", use_container_width=True):
-                    try:
-                        import pyperclip
-                        pyperclip.copy(st.session_state.generated_email)
-                        st.success("✅ Copied!")
-                    except:
-                        st.error("Copy not available")
-            with col_b:
-                st.download_button(label="📄 TXT", data=st.session_state.generated_email, file_name=f"tone_changed_{datetime.now().strftime('%Y%m%d_%H%M')}.txt", mime="text/plain", use_container_width=True)
-            with col_c:
-                try:
-                    from src.utils.pdf_export import create_pdf
-                    pdf_data = create_pdf(st.session_state.generated_email)
-                    st.download_button(label="📑 PDF", data=pdf_data, file_name=f"tone_changed_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
-                except:
-                    st.button("📑 PDF", disabled=True, use_container_width=True)
-        else:
-            st.info("👈 Change tone to see it here")
-
-# ========== TAB 4: Length ==========
-with t4:
-    col1, col2 = st.columns([1, 1])
+    # ========== ADDITIONAL FEATURES ==========
+    st.divider()
     
-    with col1:
-        st.markdown("### 📏 Email to Adjust")
-        length_input = st.text_area(
-            "Paste email:",
-            height=200,
-            placeholder="Paste email to adjust length...",
-            key="tab4_input"
+    # ========== SUBJECT LINE GENERATOR ==========
+    st.markdown("### 🏷️ Subject Line Generator")
+    if st.button("Generate Subject Lines (3-5)", use_container_width=True):
+        source_text = st.session_state.generated_email or input_text if 'input_text' in locals() else ""
+        if not source_text.strip():
+            st.warning("Generate or paste an email first.")
+        else:
+            with st.spinner("Generating subject lines..."):
+                prompt = f"Generate 5 professional subject lines for this email. Return only the subject lines, one per line:\n\n{source_text}"
+                result = generate_with_groq(prompt)
+                if result.startswith("❌"):
+                    st.error(result)
+                else:
+                    st.session_state.generated_email = result
+                    st.session_state.current_action = "subject"
+                    st.session_state.email_history.insert(0, {
+                        "timestamp": datetime.now().strftime("%H:%M"),
+                        "action": "Subject Lines",
+                        "content": result[:100] + "..."
+                    })
+                    st.rerun()
+    
+    # ========== TRANSLATION ==========
+    st.markdown("### 🌐 Translate Email")
+    col_trans1, col_trans2 = st.columns([2, 1])
+    with col_trans1:
+        translate_input = st.text_area(
+            "Email to translate:",
+            height=80,
+            placeholder="Paste email to translate...",
+            key="translate_input"
         )
+    with col_trans2:
+        lang = st.selectbox(
+            "Language:",
+            ["Spanish", "French", "German", "Chinese", "Japanese", "Arabic", "Hindi", "Portuguese", "Russian", "Italian"],
+            key="lang_select"
+        )
+        if st.button("🌐 Translate", use_container_width=True):
+            if not translate_input.strip():
+                st.warning("Please paste an email to translate.")
+            else:
+                with st.spinner(f"Translating to {lang}..."):
+                    prompt = f"Translate this email to {lang}. Maintain the professional tone and meaning:\n\n{translate_input}"
+                    result = generate_with_groq(prompt)
+                    if result.startswith("❌"):
+                        st.error(result)
+                    else:
+                        st.session_state.generated_email = result
+                        st.session_state.current_action = "translate"
+                        st.session_state.email_history.insert(0, {
+                            "timestamp": datetime.now().strftime("%H:%M"),
+                            "action": f"Translation ({lang})",
+                            "content": result[:100] + "..."
+                        })
+                        st.rerun()
+    
+    # ========== SENTIMENT ANALYSIS ==========
+    st.markdown("### 📊 Sentiment Analysis")
+    sentiment_input = st.text_area(
+        "Email to analyze:",
+        height=80,
+        placeholder="Paste email to analyze sentiment...",
+        key="sentiment_input"
+    )
+    if st.button("📊 Analyze Sentiment", use_container_width=True):
+        if not sentiment_input.strip():
+            st.warning("Please paste an email to analyze.")
+        else:
+            with st.spinner("Analyzing sentiment..."):
+                prompt = f"""Analyze the sentiment of this email and provide:
+1. Overall sentiment (Positive/Negative/Neutral)
+2. Emotional tone
+3. Key emotional indicators
+4. Suggested response approach
+
+Email:
+{sentiment_input}
+
+Sentiment Analysis:"""
+                result = generate_with_groq(prompt)
+                if result.startswith("❌"):
+                    st.error(result)
+                else:
+                    st.session_state.generated_email = result
+                    st.session_state.current_action = "sentiment"
+                    st.session_state.email_history.insert(0, {
+                        "timestamp": datetime.now().strftime("%H:%M"),
+                        "action": "Sentiment Analysis",
+                        "content": result[:100] + "..."
+                    })
+                    st.rerun()
+
+with right:
+    st.markdown("### 📤 Output")
+    
+    if st.session_state.generated_email:
+        st.markdown('<div class="output-box">', unsafe_allow_html=True)
+        st.markdown(st.session_state.generated_email)
+        st.markdown('</div>', unsafe_allow_html=True)
         
         col_a, col_b, col_c = st.columns(3)
+        
         with col_a:
-            if st.button("📏 Short", use_container_width=True):
-                if not length_input.strip():
-                    st.warning("⚠️ Please enter an email!")
-                else:
-                    if not is_connected:
-                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                    else:
-                        with st.spinner(f"Shortening with {selected_model_name}..."):
-                            prompt = f"Create a short, concise version of this email. Keep only the essential information:\n\n{length_input}"
-                            result = generate_with_groq(prompt)
-                            if result.startswith("❌"):
-                                st.error(result)
-                            else:
-                                st.session_state.generated_email = result
-                                st.session_state.current_action = "shorten"
-                                st.rerun()
+            if st.button("📋 Copy", use_container_width=True):
+                try:
+                    import pyperclip
+                    pyperclip.copy(st.session_state.generated_email)
+                    st.success("✅ Copied!")
+                except:
+                    st.error("Copy not available")
+        
         with col_b:
-            if st.button("📐 Medium", use_container_width=True):
-                if not length_input.strip():
-                    st.warning("⚠️ Please enter an email!")
-                else:
-                    if not is_connected:
-                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                    else:
-                        with st.spinner(f"Creating medium version with {selected_model_name}..."):
-                            prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{length_input}"
-                            result = generate_with_groq(prompt)
-                            if result.startswith("❌"):
-                                st.error(result)
-                            else:
-                                st.session_state.generated_email = result
-                                st.session_state.current_action = "medium"
-                                st.rerun()
+            st.download_button(
+                label="📄 TXT",
+                data=st.session_state.generated_email,
+                file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
         with col_c:
-            if st.button("📑 Detailed", use_container_width=True):
-                if not length_input.strip():
-                    st.warning("⚠️ Please enter an email!")
-                else:
-                    if not is_connected:
-                        st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                    else:
-                        with st.spinner(f"Expanding with {selected_model_name}..."):
-                            prompt = f"Create a detailed, expanded version of this email. Add relevant details and explanations:\n\n{length_input}"
-                            result = generate_with_groq(prompt)
-                            if result.startswith("❌"):
-                                st.error(result)
-                            else:
-                                st.session_state.generated_email = result
-                                st.session_state.current_action = "expand"
-                                st.rerun()
-    
-    with col2:
-        st.markdown("### 📤 Adjusted Email")
-        if st.session_state.generated_email and st.session_state.current_action in ["shorten", "medium", "expand"]:
-            st.markdown("---")
-            st.markdown(st.session_state.generated_email)
-            st.markdown("---")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                if st.button("📋 Copy", use_container_width=True):
-                    try:
-                        import pyperclip
-                        pyperclip.copy(st.session_state.generated_email)
-                        st.success("✅ Copied!")
-                    except:
-                        st.error("Copy not available")
-            with col_b:
-                st.download_button(label="📄 TXT", data=st.session_state.generated_email, file_name=f"length_adjusted_{datetime.now().strftime('%Y%m%d_%H%M')}.txt", mime="text/plain", use_container_width=True)
-            with col_c:
-                try:
-                    from src.utils.pdf_export import create_pdf
-                    pdf_data = create_pdf(st.session_state.generated_email)
-                    st.download_button(label="📑 PDF", data=pdf_data, file_name=f"length_adjusted_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
-                except:
-                    st.button("📑 PDF", disabled=True, use_container_width=True)
-        else:
-            st.info("👈 Adjust length to see it here")
-
-# ========== TAB 5: More ==========
-with t5:
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("### 📌 Subject Lines")
-        subject_input = st.text_area("Email for subjects:", height=150, placeholder="Paste email...", key="tab5_subject")
-        if st.button("📌 Generate Subject Lines", use_container_width=True):
-            if not subject_input.strip():
-                st.warning("⚠️ Please enter an email!")
-            else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                else:
-                    with st.spinner(f"Generating subjects with {selected_model_name}..."):
-                        prompt = f"Generate 5 professional subject lines for this email:\n\n{subject_input}"
-                        result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
-                            st.session_state.generated_email = result
-                            st.session_state.current_action = "subject"
-                            st.rerun()
+            try:
+                from src.utils.pdf_export import create_pdf
+                pdf_data = create_pdf(st.session_state.generated_email)
+                st.download_button(
+                    label="📑 PDF",
+                    data=pdf_data,
+                    file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except:
+                st.button("📑 PDF", disabled=True, use_container_width=True)
         
-        st.markdown("---")
-        st.markdown("### 💡 Improvement Tips")
-        tips_input = st.text_area("Email for tips:", height=150, placeholder="Paste email...", key="tab5_tips")
-        if st.button("💡 Get Improvement Tips", use_container_width=True):
-            if not tips_input.strip():
-                st.warning("⚠️ Please enter an email!")
-            else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                else:
-                    with st.spinner(f"Generating tips with {selected_model_name}..."):
-                        prompt = f"Provide improvement suggestions for this email including grammar, readability, tone, and professional wording:\n\n{tips_input}"
-                        result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
-                            st.session_state.generated_email = result
-                            st.session_state.current_action = "tips"
-                            st.rerun()
-        
-        st.markdown("---")
-        st.markdown("### 🌐 Translate")
-        translate_input = st.text_area("Email to translate:", height=100, placeholder="Paste email...", key="tab5_translate")
-        lang = st.selectbox("Language:", ["Spanish", "French", "German", "Chinese", "Japanese", "Arabic", "Hindi", "Portuguese", "Russian", "Italian"])
-        if st.button("🌐 Translate Email", use_container_width=True):
-            if not translate_input.strip():
-                st.warning("⚠️ Please enter an email!")
-            else:
-                if not is_connected:
-                    st.error("❌ API not connected. Please check your GROQ_API_KEY in Secrets.")
-                else:
-                    with st.spinner(f"Translating with {selected_model_name}..."):
-                        prompt = f"Translate this email to {lang}:\n\n{translate_input}"
-                        result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
-                            st.session_state.generated_email = result
-                            st.session_state.current_action = "translate"
-                            st.rerun()
-    
-    with col2:
-        st.markdown("### 📤 Output")
-        if st.session_state.generated_email and st.session_state.current_action in ["subject", "tips", "translate"]:
-            st.markdown("---")
-            st.markdown(st.session_state.generated_email)
-            st.markdown("---")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                if st.button("📋 Copy", use_container_width=True):
-                    try:
-                        import pyperclip
-                        pyperclip.copy(st.session_state.generated_email)
-                        st.success("✅ Copied!")
-                    except:
-                        st.error("Copy not available")
-            with col_b:
-                st.download_button(label="📄 TXT", data=st.session_state.generated_email, file_name=f"output_{datetime.now().strftime('%Y%m%d_%H%M')}.txt", mime="text/plain", use_container_width=True)
-            with col_c:
-                try:
-                    from src.utils.pdf_export import create_pdf
-                    pdf_data = create_pdf(st.session_state.generated_email)
-                    st.download_button(label="📑 PDF", data=pdf_data, file_name=f"output_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
-                except:
-                    st.button("📑 PDF", disabled=True, use_container_width=True)
-        else:
-            st.info("👈 Use features to see output here")
+        if st.button("🔄 Clear Output", use_container_width=True):
+            st.session_state.generated_email = ""
+            st.session_state.current_action = ""
+            st.rerun()
+    else:
+        st.info("Your generated or improved email will appear here.")
 
-# ========== FOOTER - FIXED ==========
+# ========== FOOTER ==========
 st.divider()
-st.caption(f"✉️ AI Email Assistant Pro | Powered by Groq API | Model: {selected_model_name}")
-
-with st.expander("ℹ️ System Status"):
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Groq API", "✅ Connected" if is_connected else "❌ Disconnected")
-    with c2:
-        st.metric("Model", selected_model_name)
-    with c3:
-        st.metric("PDF Export", "✅ Available")
-    with c4:
-        st.metric("Theme", "🌙 Dark Mode")
+st.caption("⚠️ Always review AI-generated content before sending. This tool assists — it doesn't replace your judgment.")
