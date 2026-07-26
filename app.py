@@ -216,10 +216,11 @@ if 'api_error' not in st.session_state:
     st.session_state.api_error = None
 if 'api_checked' not in st.session_state:
     st.session_state.api_checked = False
+if 'template_clicked' not in st.session_state:
+    st.session_state.template_clicked = False
 
 # ========== API CONNECTION CHECK - ONLY ONCE ==========
 def check_api_connection():
-    """Check API connection once and store in session state"""
     if st.session_state.api_checked:
         return st.session_state.groq_available
     
@@ -253,7 +254,6 @@ def check_api_connection():
 
 # ========== API CALL FUNCTION ==========
 def call_groq_api(prompt, model="llama-3.3-70b-versatile"):
-    """Direct API call to Groq using requests"""
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -349,14 +349,37 @@ with st.sidebar:
     st.markdown("### 📝 Quick Templates")
     
     templates = {
-        "📧 Job Application": "Subject: Application for Position\n\nDear Hiring Manager,\n\nI am writing to apply for the position at your company. With my experience and skills, I believe I would be a valuable addition to your team.\n\nBest regards,\n[Your Name]",
-        "🏖️ Leave Request": "Subject: Leave Request\n\nDear Manager,\n\nI am writing to request leave from [start date] to [end date]. Please approve my request.\n\nRegards,\n[Your Name]",
-        "📄 Business Proposal": "Subject: Business Proposal\n\nDear [Name],\n\nI hope this email finds you well. I am writing to propose a collaboration between our companies.\n\nBest regards,\n[Your Name]"
+        "📧 Job Application": """Subject: Application for Position
+
+Dear Hiring Manager,
+
+I am writing to apply for the position at your company. With my experience and skills, I believe I would be a valuable addition to your team.
+
+Best regards,
+[Your Name]""",
+        "🏖️ Leave Request": """Subject: Leave Request
+
+Dear Manager,
+
+I am writing to request leave from [start date] to [end date]. Please approve my request.
+
+Regards,
+[Your Name]""",
+        "📄 Business Proposal": """Subject: Business Proposal
+
+Dear [Name],
+
+I hope this email finds you well. I am writing to propose a collaboration between our companies.
+
+Best regards,
+[Your Name]"""
     }
     
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_content = content
+            st.session_state.template_clicked = True
+            st.rerun()
 
 # ========== MAIN CONTENT ==========
 st.markdown("# ✉️ AI Email Assistant Pro")
@@ -390,14 +413,16 @@ with t1:
                 "Paste your email:",
                 height=250,
                 placeholder="Paste the email content here...",
-                key="tab1_paste"
+                key="tab1_paste",
+                value=st.session_state.email_content if st.session_state.template_clicked else ""
             )
         else:
             email_input = st.text_area(
                 "Write your email:",
                 height=250,
                 placeholder="Write your email content here...",
-                key="tab1_write"
+                key="tab1_write",
+                value=st.session_state.email_content if st.session_state.template_clicked else ""
             )
         
         reply_type = st.selectbox(
@@ -418,6 +443,7 @@ with t1:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "reply"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Generated Reply")
@@ -484,6 +510,7 @@ with t2:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "grammar"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Corrected Email")
@@ -541,6 +568,7 @@ with t3:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "tone"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Transformed Email")
@@ -597,6 +625,7 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "shorten"
+                            st.rerun()
         with col_b:
             if st.button("📐 Medium", use_container_width=True):
                 if not length_input.strip():
@@ -610,6 +639,7 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "medium"
+                            st.rerun()
         with col_c:
             if st.button("📑 Detailed", use_container_width=True):
                 if not length_input.strip():
@@ -623,6 +653,7 @@ with t4:
                             result = generate_with_groq(prompt)
                             st.session_state.generated_email = result
                             st.session_state.current_action = "expand"
+                            st.rerun()
     
     with col2:
         st.markdown("### 📤 Adjusted Email")
@@ -671,6 +702,7 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "subject"
+                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 💡 Improvement Tips")
@@ -687,6 +719,7 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "tips"
+                        st.rerun()
         
         st.markdown("---")
         st.markdown("### 🌐 Translate")
@@ -704,6 +737,7 @@ with t5:
                         result = generate_with_groq(prompt)
                         st.session_state.generated_email = result
                         st.session_state.current_action = "translate"
+                        st.rerun()
     
     with col2:
         st.markdown("### 📤 Output")
