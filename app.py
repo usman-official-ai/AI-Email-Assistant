@@ -5,14 +5,33 @@ import json
 from datetime import datetime
 from io import BytesIO
 import requests
+import pyperclip
 
 # ========== DARK/LIGHT MODE TOGGLE ==========
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
-def toggle_theme():
-    st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
-    st.rerun()
+# ========== SESSION STATE ==========
+if 'email_input' not in st.session_state:
+    st.session_state.email_input = ""
+if 'generated_email' not in st.session_state:
+    st.session_state.generated_email = ""
+if 'current_action' not in st.session_state:
+    st.session_state.current_action = ""
+if 'selected_model_id' not in st.session_state:
+    st.session_state.selected_model_id = "llama-3.1-8b-instant"
+if 'groq_available' not in st.session_state:
+    st.session_state.groq_available = False
+if 'api_checked' not in st.session_state:
+    st.session_state.api_checked = False
+if 'email_history' not in st.session_state:
+    st.session_state.email_history = []
+if 'api_call_count' not in st.session_state:
+    st.session_state.api_call_count = 0
+if 'last_api_call' not in st.session_state:
+    st.session_state.last_api_call = 0
+if 'copy_success' not in st.session_state:
+    st.session_state.copy_success = False
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -107,6 +126,7 @@ if st.session_state.theme == 'dark':
     ::-webkit-scrollbar-track { background: #0a0a0f; }
     ::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 4px; }
     .output-box { background: #111118; border: 1px solid #1a1a2e; border-radius: 12px; padding: 20px; margin: 10px 0; }
+    .stAlert { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; }
     </style>
     """, unsafe_allow_html=True)
 else:
@@ -165,22 +185,6 @@ else:
     </style>
     """, unsafe_allow_html=True)
 
-# ========== SESSION STATE ==========
-if 'email_input' not in st.session_state:
-    st.session_state.email_input = ""
-if 'generated_email' not in st.session_state:
-    st.session_state.generated_email = ""
-if 'current_action' not in st.session_state:
-    st.session_state.current_action = ""
-if 'selected_model_id' not in st.session_state:
-    st.session_state.selected_model_id = "llama-3.1-8b-instant"
-if 'groq_available' not in st.session_state:
-    st.session_state.groq_available = False
-if 'api_checked' not in st.session_state:
-    st.session_state.api_checked = False
-if 'email_history' not in st.session_state:
-    st.session_state.email_history = []
-
 # ========== API SETUP ==========
 def check_api_connection():
     if st.session_state.api_checked:
@@ -212,6 +216,16 @@ def check_api_connection():
     return st.session_state.groq_available
 
 def call_groq_api(prompt, model="llama-3.1-8b-instant"):
+    # ========== RATE LIMIT PROTECTION ==========
+    current_time = time.time()
+    if current_time - st.session_state.last_api_call < 3:
+        st.warning("⏳ Please wait a few seconds between requests.")
+        return None
+    
+    if st.session_state.api_call_count > 30:
+        st.warning("⚠️ Too many API calls. Please refresh the app.")
+        return None
+    
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -238,6 +252,9 @@ def call_groq_api(prompt, model="llama-3.1-8b-instant"):
         }
         
         response = requests.post(url, headers=headers, json=data, timeout=60)
+        
+        st.session_state.last_api_call = time.time()
+        st.session_state.api_call_count += 1
         
         if response.status_code == 200:
             result = response.json()
@@ -270,8 +287,9 @@ with st.sidebar:
     st.markdown("# 📧 AI Email Assistant")
     st.caption("Write, reply, correct, and polish your emails.")
     
-    # ========== DARK/LIGHT MODE TOGGLE ==========
     st.divider()
+    
+    # ========== DARK/LIGHT TOGGLE ==========
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🌙 Dark", use_container_width=True):
@@ -300,7 +318,7 @@ with st.sidebar:
     
     st.divider()
     
-    # ========== EMAIL TEMPLATES (5) ==========
+    # ========== TEMPLATES ==========
     st.markdown("### 📝 Templates")
     
     templates = {
@@ -357,7 +375,7 @@ Best regards,
     
     st.divider()
     
-    # ========== EMAIL HISTORY ==========
+    # ========== HISTORY ==========
     st.markdown("### 📜 Email History")
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state.email_history = []
@@ -373,6 +391,7 @@ Best regards,
     st.markdown("### 🔑 API Status")
     if is_connected:
         st.success("✅ Connected")
+        st.caption(f"Calls: {st.session_state.api_call_count}")
     else:
         st.error("❌ Not Connected")
     
@@ -428,20 +447,19 @@ Write a complete email with subject line, greeting, body, and sign-off.
 
 Email:"""
                     result = generate_with_groq(prompt)
-                    if result.startswith("❌"):
-                        st.error(result)
-                    else:
+                    if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
                         st.session_state.current_action = "write"
-                        # Save to history
                         st.session_state.email_history.insert(0, {
                             "timestamp": datetime.now().strftime("%H:%M"),
                             "action": "Write Email",
                             "content": result[:100] + "..."
                         })
                         st.rerun()
+                    elif result:
+                        st.error(result)
 
-    # ========== REPLY MODE (5 TYPES) ==========
+    # ========== REPLY MODE ==========
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
         input_text = st.text_area(
@@ -482,9 +500,7 @@ Write a complete email reply.
 
 Reply:"""
                     result = generate_with_groq(prompt)
-                    if result.startswith("❌"):
-                        st.error(result)
-                    else:
+                    if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
                         st.session_state.current_action = "reply"
                         st.session_state.email_history.insert(0, {
@@ -493,6 +509,8 @@ Reply:"""
                             "content": result[:100] + "..."
                         })
                         st.rerun()
+                    elif result:
+                        st.error(result)
 
     # ========== IMPROVE MODE ==========
     else:
@@ -516,9 +534,7 @@ Reply:"""
                     with st.spinner("Fixing grammar..."):
                         prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{input_text}"
                         result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
+                        if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
                             st.session_state.current_action = "grammar"
                             st.session_state.email_history.insert(0, {
@@ -527,6 +543,8 @@ Reply:"""
                                 "content": result[:100] + "..."
                             })
                             st.rerun()
+                        elif result:
+                            st.error(result)
         
         with col2:
             if st.button("🎭 Change Tone", use_container_width=True):
@@ -536,9 +554,7 @@ Reply:"""
                     with st.spinner("Changing tone..."):
                         prompt = f"Rewrite this email in a professional tone. Keep the core message but adjust the language:\n\n{input_text}"
                         result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
+                        if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
                             st.session_state.current_action = "tone"
                             st.session_state.email_history.insert(0, {
@@ -547,6 +563,8 @@ Reply:"""
                                 "content": result[:100] + "..."
                             })
                             st.rerun()
+                        elif result:
+                            st.error(result)
         
         with col3:
             if st.button("📏 Adjust Length", use_container_width=True):
@@ -554,12 +572,9 @@ Reply:"""
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Adjusting length..."):
-                        # ========== MEDIUM VERSION ==========
                         prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{input_text}"
                         result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
+                        if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
                             st.session_state.current_action = "medium"
                             st.session_state.email_history.insert(0, {
@@ -568,6 +583,8 @@ Reply:"""
                                 "content": result[:100] + "..."
                             })
                             st.rerun()
+                        elif result:
+                            st.error(result)
         
         with col4:
             if st.button("💡 Improve", use_container_width=True):
@@ -587,9 +604,7 @@ Email:
 
 Suggestions:"""
                         result = generate_with_groq(prompt)
-                        if result.startswith("❌"):
-                            st.error(result)
-                        else:
+                        if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
                             st.session_state.current_action = "suggest"
                             st.session_state.email_history.insert(0, {
@@ -598,6 +613,8 @@ Suggestions:"""
                                 "content": result[:100] + "..."
                             })
                             st.rerun()
+                        elif result:
+                            st.error(result)
     
     # ========== ADDITIONAL FEATURES ==========
     st.divider()
@@ -612,9 +629,7 @@ Suggestions:"""
             with st.spinner("Generating subject lines..."):
                 prompt = f"Generate 5 professional subject lines for this email. Return only the subject lines, one per line:\n\n{source_text}"
                 result = generate_with_groq(prompt)
-                if result.startswith("❌"):
-                    st.error(result)
-                else:
+                if result and not result.startswith("❌"):
                     st.session_state.generated_email = result
                     st.session_state.current_action = "subject"
                     st.session_state.email_history.insert(0, {
@@ -623,6 +638,8 @@ Suggestions:"""
                         "content": result[:100] + "..."
                     })
                     st.rerun()
+                elif result:
+                    st.error(result)
     
     # ========== TRANSLATION ==========
     st.markdown("### 🌐 Translate Email")
@@ -647,9 +664,7 @@ Suggestions:"""
                 with st.spinner(f"Translating to {lang}..."):
                     prompt = f"Translate this email to {lang}. Maintain the professional tone and meaning:\n\n{translate_input}"
                     result = generate_with_groq(prompt)
-                    if result.startswith("❌"):
-                        st.error(result)
-                    else:
+                    if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
                         st.session_state.current_action = "translate"
                         st.session_state.email_history.insert(0, {
@@ -658,6 +673,8 @@ Suggestions:"""
                             "content": result[:100] + "..."
                         })
                         st.rerun()
+                    elif result:
+                        st.error(result)
     
     # ========== SENTIMENT ANALYSIS ==========
     st.markdown("### 📊 Sentiment Analysis")
@@ -683,9 +700,7 @@ Email:
 
 Sentiment Analysis:"""
                 result = generate_with_groq(prompt)
-                if result.startswith("❌"):
-                    st.error(result)
-                else:
+                if result and not result.startswith("❌"):
                     st.session_state.generated_email = result
                     st.session_state.current_action = "sentiment"
                     st.session_state.email_history.insert(0, {
@@ -694,6 +709,8 @@ Sentiment Analysis:"""
                         "content": result[:100] + "..."
                     })
                     st.rerun()
+                elif result:
+                    st.error(result)
 
 with right:
     st.markdown("### 📤 Output")
@@ -705,14 +722,16 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
+        # ========== FIX: COPY BUTTON WORKING ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
-                    import pyperclip
                     pyperclip.copy(st.session_state.generated_email)
-                    st.success("✅ Copied!")
-                except:
-                    st.error("Copy not available")
+                    st.success("✅ Copied to clipboard!")
+                except Exception as e:
+                    # Fallback: Select text manually
+                    st.warning("⚠️ Copy not available. Please select and copy manually.")
+                    st.code(st.session_state.generated_email, language="text")
         
         with col_b:
             st.download_button(
