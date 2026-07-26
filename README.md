@@ -5,7 +5,11 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28.0-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-API-FF6B6B?style=for-the-badge&logo=groq&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)  
+
+  <img width="1536" height="1024" alt="ChatGPT Image Jul 25, 2026, 05_31_04 PM" src="https://github.com/user-attachments/assets/34b7f796-64fb-438b-8738-f93cd7aa0609" />    
+  
+
 
 **An intelligent AI-powered Email Assistant that helps you write, improve, and reply to emails professionally using Groq's high-performance API.**
 
