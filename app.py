@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import requests
 import pyperclip
+import json
 
 # ========== SESSION STATE ==========
 if 'generated_email' not in st.session_state:
@@ -12,6 +13,8 @@ if 'groq_available' not in st.session_state:
     st.session_state.groq_available = False
 if 'api_checked' not in st.session_state:
     st.session_state.api_checked = False
+if 'last_request_time' not in st.session_state:
+    st.session_state.last_request_time = 0
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -32,7 +35,14 @@ def get_api_key():
 GROQ_API_KEY = get_api_key()
 
 if not GROQ_API_KEY:
-    st.error("❌ GROQ_API_KEY not found! Add to .env or Secrets.")
+    st.error("""
+    ❌ **GROQ_API_KEY not found!**
+    
+    **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
+    
+    Get API key from: [console.groq.com](https://console.groq.com)
+    """)
     st.stop()
 
 st.set_page_config(
@@ -62,6 +72,7 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !impo
     border-radius: 12px !important; padding: 12px 28px !important;
     font-weight: 600 !important;
     box-shadow: 0 4px 15px rgba(255, 75, 75, 0.2) !important;
+    width: 100%;
 }
 .stButton > button:hover {
     transform: translateY(-2px) !important;
@@ -71,10 +82,24 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !impo
     background: #f0f0f0 !important;
     color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important;
+    box-shadow: none !important;
+}
+.stSidebar .stButton > button:hover {
+    background: #e0e0e0 !important;
+    border-color: #ff4b4b !important;
 }
 .stDownloadButton > button {
     background: #f0f0f0 !important; color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important; border-radius: 10px !important;
+}
+.stTabs [data-baseweb="tab-list"] {
+    background: #f0f0f0 !important; border-radius: 12px !important;
+    padding: 4px !important; border: 1px solid #e0e0e0 !important;
+}
+.stTabs [data-baseweb="tab"] { color: #666 !important; border-radius: 8px !important; padding: 10px 20px !important; }
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+    color: #ffffff !important;
 }
 hr { border-color: #e0e0e0 !important; }
 .stCaption { color: #888 !important; }
@@ -103,6 +128,10 @@ hr { border-color: #e0e0e0 !important; }
     font-size: 13px !important;
 }
 .stRadio > div > label:hover { border-color: #ff4b4b !important; }
+.stRadio > div > label[data-baseweb="radio"] input:checked + div {
+    background: #ff4b4b !important;
+    border-color: #ff4b4b !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,25 +150,73 @@ def check_api():
     st.session_state.api_checked = True
     return st.session_state.groq_available
 
-def generate_email(prompt):
+# ========== FIX: QUICK API CALL WITH RATE LIMIT HANDLING ==========
+def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
     try:
+        # Rate limit: 1 second gap between requests
+        current_time = time.time()
+        time_since_last = current_time - st.session_state.last_request_time
+        if time_since_last < 1.0:
+            time.sleep(1.0 - time_since_last)
+        
         url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        data = {
-            "model": "llama-3.1-8b-instant",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
-            "max_tokens": 2048
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
         }
+        
+        data = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a professional email assistant with expertise in business communication, grammar, and writing styles. Respond with clear, well-formatted emails."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 2048,
+            "top_p": 1
+        }
+        
         response = requests.post(url, headers=headers, json=data, timeout=60)
+        st.session_state.last_request_time = time.time()
+        
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+            
+        elif response.status_code == 429 and retry_count < 2:
+            wait_time = (retry_count + 1) * 3
+            time.sleep(wait_time)
+            return call_groq_api(prompt, model, retry_count + 1)
+            
+        elif response.status_code == 401:
+            return "❌ Invalid API Key! Please check your GROQ_API_KEY."
+            
         elif response.status_code == 429:
-            return "⚠️ Rate limit. Please wait."
+            return "⚠️ Rate limit exceeded! Please wait 2-3 minutes and try again."
+            
         else:
-            return f"❌ Error: {response.status_code}"
+            return f"❌ API Error: {response.status_code}"
+            
+    except requests.exceptions.Timeout:
+        return "❌ Request timeout! Please try again."
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
+def generate_email(prompt):
+    if not st.session_state.groq_available:
+        return "❌ API not connected. Please check your GROQ_API_KEY."
+    
+    model_to_use = "llama-3.1-8b-instant"
+    if not prompt or not prompt.strip():
+        return "❌ Please provide a valid prompt."
+    
+    return call_groq_api(prompt, model_to_use)
 
 is_connected = check_api()
 
@@ -147,12 +224,30 @@ is_connected = check_api()
 with st.sidebar:
     st.markdown("# 📧 AI Email Assistant")
     st.caption("Write, reply, correct, and polish your emails.")
+    
     st.divider()
+    
+    st.markdown("### 🎯 Features")
+    st.markdown("""
+    - ✍️ Write Email
+    - ↩️ Reply (5 Types)
+    - ✅ Grammar Fix
+    - 🎭 Tone (7 Types)
+    - 📏 Length (Short/Medium/Detailed)
+    - 🏷️ Subject Lines
+    - 💡 Improvement Tips
+    - 📋 Copy
+    - 📄 TXT/PDF Export
+    """)
+    
+    st.divider()
+    
     st.markdown("### 🔑 API Status")
     if is_connected:
         st.success("✅ Connected")
     else:
         st.error("❌ Not Connected")
+    
     st.divider()
     st.caption("Built with Streamlit + Groq")
 
@@ -161,7 +256,13 @@ st.markdown("# 📧 AI Email Assistant")
 st.markdown("Write, reply, correct, and polish your emails in seconds.")
 
 if not is_connected:
-    st.warning("⚠️ API not connected. Please check your GROQ_API_KEY.")
+    st.warning("""
+    ⚠️ **API not connected!**
+    
+    Please check your `GROQ_API_KEY` in:
+    - **Cloud:** Streamlit Secrets
+    - **Local:** `.env` file
+    """)
 
 # ========== MODE SELECTION ==========
 mode = st.radio(
@@ -183,32 +284,40 @@ with left:
             label_visibility="collapsed"
         )
 
-        # ========== TONE (7 TYPES) ==========
-        tone = st.selectbox(
-            "Tone",
-            ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
-            index=0
-        )
-        
-        # ========== LENGTH (3 TYPES) ==========
-        length = st.selectbox(
-            "Length",
-            ["Short", "Medium", "Detailed"],
-            index=1
-        )
+        col_tone, col_length = st.columns(2)
+        with col_tone:
+            tone = st.selectbox(
+                "Tone",
+                ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
+                index=0
+            )
+        with col_length:
+            length = st.selectbox(
+                "Length",
+                ["Short", "Medium", "Detailed"],
+                index=1
+            )
 
-        if st.button("✨ Generate Email", type="primary", use_container_width=True):
+        if st.button("✨ Generate Email", type="primary"):
             if not input_text.strip():
                 st.warning("Please describe what the email should be about.")
             else:
                 with st.spinner("Drafting your email..."):
-                    prompt = f"Write a professional email with {tone} tone and {length} length about: {input_text}"
+                    prompt = f"""Write a professional email based on the following description.
+
+Topic: {input_text}
+Tone: {tone}
+Length: {length}
+
+Write a complete email with subject line, greeting, body, and sign-off.
+
+Email:"""
                     result = generate_email(prompt)
-                    if not result.startswith("❌"):
+                    if result.startswith("❌") or result.startswith("⚠️"):
+                        st.error(result)
+                    else:
                         st.session_state.generated_email = result
                         st.rerun()
-                    else:
-                        st.error(result)
 
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
@@ -220,39 +329,51 @@ with left:
             label_visibility="collapsed"
         )
 
-        # ========== REPLY TYPES (5 TYPES) ==========
         reply_type = st.selectbox(
             "Reply type",
             ["General", "Accept Meeting", "Decline Politely", "Request More Info", "Thank You", "Follow-up"],
             index=0
         )
 
-        tone = st.selectbox(
-            "Tone",
-            ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
-            index=0,
-            key="reply_tone"
-        )
-        
-        length = st.selectbox(
-            "Length",
-            ["Short", "Medium", "Detailed"],
-            index=1,
-            key="reply_length"
-        )
+        col_tone, col_length = st.columns(2)
+        with col_tone:
+            tone = st.selectbox(
+                "Tone",
+                ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
+                index=0,
+                key="reply_tone"
+            )
+        with col_length:
+            length = st.selectbox(
+                "Length",
+                ["Short", "Medium", "Detailed"],
+                index=1,
+                key="reply_length"
+            )
 
-        if st.button("↩️ Generate Reply", type="primary", use_container_width=True):
+        if st.button("↩️ Generate Reply", type="primary"):
             if not input_text.strip():
                 st.warning("Please paste the original email first.")
             else:
                 with st.spinner("Writing your reply..."):
-                    prompt = f"Write a {reply_type} reply with {tone} tone and {length} length for: {input_text}"
+                    prompt = f"""Write a reply to the following email.
+
+Original email:
+{input_text}
+
+Reply type: {reply_type}
+Tone: {tone}
+Length: {length}
+
+Write a complete email reply.
+
+Reply:"""
                     result = generate_email(prompt)
-                    if not result.startswith("❌"):
+                    if result.startswith("❌") or result.startswith("⚠️"):
+                        st.error(result)
+                    else:
                         st.session_state.generated_email = result
                         st.rerun()
-                    else:
-                        st.error(result)
 
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
@@ -265,8 +386,6 @@ with left:
         )
 
         st.markdown("#### Actions")
-        
-        # ========== 4 ACTIONS ==========
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -275,13 +394,13 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Fixing grammar..."):
-                        prompt = f"Fix all grammar errors in this email: {input_text}"
+                        prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{input_text}"
                         result = generate_email(prompt)
-                        if not result.startswith("❌"):
+                        if result.startswith("❌") or result.startswith("⚠️"):
+                            st.error(result)
+                        else:
                             st.session_state.generated_email = result
                             st.rerun()
-                        else:
-                            st.error(result)
         
         with col2:
             if st.button("🎭 Change Tone", use_container_width=True):
@@ -290,13 +409,13 @@ with left:
                 else:
                     with st.spinner("Changing tone..."):
                         tone = st.selectbox("Tone", ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"], index=0, key="edit_tone")
-                        prompt = f"Rewrite this email in {tone} tone: {input_text}"
+                        prompt = f"Rewrite this email in a {tone} tone. Keep the core message but adjust the language:\n\n{input_text}"
                         result = generate_email(prompt)
-                        if not result.startswith("❌"):
+                        if result.startswith("❌") or result.startswith("⚠️"):
+                            st.error(result)
+                        else:
                             st.session_state.generated_email = result
                             st.rerun()
-                        else:
-                            st.error(result)
         
         with col3:
             if st.button("📏 Adjust Length", use_container_width=True):
@@ -305,13 +424,13 @@ with left:
                 else:
                     with st.spinner("Adjusting length..."):
                         length = st.selectbox("Length", ["Short", "Medium", "Detailed"], index=1, key="edit_length")
-                        prompt = f"Rewrite this email in {length} length: {input_text}"
+                        prompt = f"Create a {length} version of this email. Keep the same meaning and tone:\n\n{input_text}"
                         result = generate_email(prompt)
-                        if not result.startswith("❌"):
+                        if result.startswith("❌") or result.startswith("⚠️"):
+                            st.error(result)
+                        else:
                             st.session_state.generated_email = result
                             st.rerun()
-                        else:
-                            st.error(result)
         
         with col4:
             if st.button("💡 Improve", use_container_width=True):
@@ -319,13 +438,23 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Analyzing..."):
-                        prompt = f"Suggest improvements for this email: {input_text}"
+                        prompt = f"""Provide improvement suggestions for this email including:
+1. Grammar and spelling
+2. Readability and clarity
+3. Tone appropriateness
+4. Missing information
+5. Professional wording recommendations
+
+Email:
+{input_text}
+
+Suggestions:"""
                         result = generate_email(prompt)
-                        if not result.startswith("❌"):
+                        if result.startswith("❌") or result.startswith("⚠️"):
+                            st.error(result)
+                        else:
                             st.session_state.generated_email = result
                             st.rerun()
-                        else:
-                            st.error(result)
     
     # ========== SUBJECT LINE GENERATOR ==========
     st.divider()
@@ -336,13 +465,13 @@ with left:
             st.warning("Generate or paste an email first.")
         else:
             with st.spinner("Generating subject lines..."):
-                prompt = f"Generate 5 professional subject lines for this email: {source_text}"
+                prompt = f"Generate 5 professional subject lines for this email. Return only the subject lines, one per line:\n\n{source_text}"
                 result = generate_email(prompt)
-                if not result.startswith("❌"):
+                if result.startswith("❌") or result.startswith("⚠️"):
+                    st.error(result)
+                else:
                     st.session_state.generated_email = result
                     st.rerun()
-                else:
-                    st.error(result)
 
 with right:
     st.markdown("### 📤 Output")
@@ -354,16 +483,15 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== COPY FEATURE ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
                     pyperclip.copy(st.session_state.generated_email)
-                    st.success("✅ Copied!")
+                    st.success("✅ Copied to clipboard!")
                 except:
                     st.warning("Please select and copy manually.")
+                    st.code(st.session_state.generated_email, language="text")
         
-        # ========== TXT EXPORT ==========
         with col_b:
             st.download_button(
                 label="📄 TXT",
@@ -373,7 +501,6 @@ with right:
                 use_container_width=True
             )
         
-        # ========== PDF EXPORT ==========
         with col_c:
             try:
                 from src.utils.pdf_export import create_pdf
@@ -388,11 +515,12 @@ with right:
             except:
                 st.button("📑 PDF", disabled=True, use_container_width=True)
         
-        if st.button("🔄 Clear", use_container_width=True):
+        if st.button("🔄 Clear Output", use_container_width=True):
             st.session_state.generated_email = ""
             st.rerun()
     else:
         st.info("Your generated email will appear here.")
 
+# ========== FOOTER ==========
 st.divider()
-st.caption("⚠️ Always review AI-generated content before sending.")
+st.caption("⚠️ Always review AI-generated content before sending. This tool assists — it doesn't replace your judgment.")
