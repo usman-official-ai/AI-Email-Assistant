@@ -175,11 +175,9 @@ def check_api_connection():
     st.session_state.api_checked = True
     return st.session_state.groq_available
 
-def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
+# ========== FIX: NO RETRY - INSTANT RESPONSE ==========
+def call_groq_api(prompt, model="llama-3.1-8b-instant"):
     try:
-        if retry_count > 0:
-            time.sleep(retry_count * 2)
-        
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
         data = {
@@ -192,15 +190,13 @@ def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
         
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
-        elif response.status_code == 429 and retry_count < 3:
-            return call_groq_api(prompt, model, retry_count + 1)
+        elif response.status_code == 429:
+            return "⚠️ Rate limit exceeded. Please wait a moment and try again."
         elif response.status_code == 401:
             return "❌ Invalid API Key!"
         else:
             return f"❌ API Error: {response.status_code}"
     except Exception as e:
-        if retry_count < 3:
-            return call_groq_api(prompt, model, retry_count + 1)
         return f"❌ Error: {str(e)}"
 
 def generate_with_groq(prompt):
@@ -579,7 +575,6 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== COPY BUTTON - WORKING ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
