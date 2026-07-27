@@ -7,6 +7,10 @@ from io import BytesIO
 import requests
 import pyperclip
 
+# ========== DARK/LIGHT MODE TOGGLE ==========
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'dark'
+
 # ========== SESSION STATE ==========
 if 'email_input' not in st.session_state:
     st.session_state.email_input = ""
@@ -64,66 +68,122 @@ st.set_page_config(
     layout="wide"
 )
 
-# ========== DARK THEME ==========
-st.markdown("""
-<style>
-.stApp { background: #0a0a0f; }
-.stSidebar { background: #111118; border-right: 1px solid #1a1a2e; }
-h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #ffffff !important; }
-.stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
-.stTextInput > label, .stSelectbox > label, .stTextArea > label,
-.stRadio > label, .stCheckbox > label { color: #ffffff !important; }
-.stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #ffffff !important; }
-.stTextInput > div > div > input {
-    background: #1a1a2e !important; color: #ffffff !important;
-    border: 1px solid #2a2a44 !important; border-radius: 12px !important;
-    padding: 14px 18px !important;
-}
-.stTextArea > div > div > textarea {
-    background: #1a1a2e !important; color: #ffffff !important;
-    border: 1px solid #2a2a44 !important; border-radius: 12px !important;
-}
-.stSelectbox > div > div > select {
-    background: #1a1a2e !important; color: #ffffff !important;
-    border: 1px solid #2a2a44 !important; border-radius: 12px !important;
-}
-.stButton > button {
-    background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
-    color: white !important; border: none !important;
-    border-radius: 12px !important; padding: 12px 28px !important;
-    font-weight: 600 !important; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.25) !important;
-}
-.stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 30px rgba(255, 75, 75, 0.35) !important;
-}
-.stDownloadButton > button {
-    background: #1a1a2e !important; color: white !important;
-    border: 1px solid #2a2a44 !important; border-radius: 10px !important;
-}
-.stTabs [data-baseweb="tab-list"] {
-    background: #111118 !important; border-radius: 12px !important;
-    padding: 4px !important; border: 1px solid #1a1a2e !important;
-}
-.stTabs [data-baseweb="tab"] { color: #8899aa !important; border-radius: 8px !important; padding: 10px 20px !important; }
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
-    color: #ffffff !important;
-}
-.stExpander { background: #111118 !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
-.stMetric { background: #111118 !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #1a1a2e !important; }
-.stMetric label { color: #8899aa !important; }
-.stMetric .stMarkdown { color: #ffffff !important; }
-hr { border-color: #1a1a2e !important; }
-.stCaption { color: #555 !important; }
-.stInfo { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0a0a0f; }
-::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 4px; }
-.output-box { background: #111118; border: 1px solid #1a1a2e; border-radius: 12px; padding: 20px; margin: 10px 0; }
-.stAlert { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; }
-</style>
-""", unsafe_allow_html=True)
+# ========== THEME CSS ==========
+if st.session_state.theme == 'dark':
+    st.markdown("""
+    <style>
+    .stApp { background: #0a0a0f; }
+    .stSidebar { background: #111118; border-right: 1px solid #1a1a2e; }
+    h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #ffffff !important; }
+    .stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
+    .stTextInput > label, .stSelectbox > label, .stTextArea > label,
+    .stRadio > label, .stCheckbox > label { color: #ffffff !important; }
+    .stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #ffffff !important; }
+    .stTextInput > div > div > input {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+        padding: 14px 18px !important;
+    }
+    .stTextArea > div > div > textarea {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+    }
+    .stSelectbox > div > div > select {
+        background: #1a1a2e !important; color: #ffffff !important;
+        border: 1px solid #2a2a44 !important; border-radius: 12px !important;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: white !important; border: none !important;
+        border-radius: 12px !important; padding: 12px 28px !important;
+        font-weight: 600 !important; box-shadow: 0 4px 20px rgba(255, 75, 75, 0.25) !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 30px rgba(255, 75, 75, 0.35) !important;
+    }
+    .stDownloadButton > button {
+        background: #1a1a2e !important; color: white !important;
+        border: 1px solid #2a2a44 !important; border-radius: 10px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: #111118 !important; border-radius: 12px !important;
+        padding: 4px !important; border: 1px solid #1a1a2e !important;
+    }
+    .stTabs [data-baseweb="tab"] { color: #8899aa !important; border-radius: 8px !important; padding: 10px 20px !important; }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: #ffffff !important;
+    }
+    .stExpander { background: #111118 !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
+    .stMetric { background: #111118 !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #1a1a2e !important; }
+    .stMetric label { color: #8899aa !important; }
+    .stMetric .stMarkdown { color: #ffffff !important; }
+    hr { border-color: #1a1a2e !important; }
+    .stCaption { color: #555 !important; }
+    .stInfo { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; border-radius: 12px !important; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 4px; }
+    .output-box { background: #111118; border: 1px solid #1a1a2e; border-radius: 12px; padding: 20px; margin: 10px 0; }
+    .stAlert { background: rgba(255,255,255,0.03) !important; border: 1px solid #1a1a2e !important; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp { background: #f5f5f7; }
+    .stSidebar { background: #ffffff; border-right: 1px solid #e0e0e0; }
+    h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !important; }
+    .stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
+    .stTextInput > label, .stSelectbox > label, .stTextArea > label,
+    .stRadio > label, .stCheckbox > label { color: #1a1a1a !important; }
+    .stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #1a1a1a !important; }
+    .stTextInput > div > div > input {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+        padding: 14px 18px !important;
+    }
+    .stTextArea > div > div > textarea {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+    }
+    .stSelectbox > div > div > select {
+        background: #ffffff !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
+    }
+    .stButton > button {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: white !important; border: none !important;
+        border-radius: 12px !important; padding: 12px 28px !important;
+        font-weight: 600 !important;
+    }
+    .stDownloadButton > button {
+        background: #f0f0f0 !important; color: #1a1a1a !important;
+        border: 1px solid #d0d0d0 !important; border-radius: 10px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: #f0f0f0 !important; border-radius: 12px !important;
+        padding: 4px !important; border: 1px solid #e0e0e0 !important;
+    }
+    .stTabs [data-baseweb="tab"] { color: #666 !important; border-radius: 8px !important; padding: 10px 20px !important; }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
+        color: #ffffff !important;
+    }
+    .stExpander { background: #ffffff !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
+    .stMetric { background: #ffffff !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #e0e0e0 !important; }
+    .stMetric label { color: #666 !important; }
+    .stMetric .stMarkdown { color: #1a1a1a !important; }
+    hr { border-color: #e0e0e0 !important; }
+    .stCaption { color: #888 !important; }
+    .stInfo { background: rgba(0,0,0,0.02) !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f5f5f7; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 4px; }
+    .output-box { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin: 10px 0; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ========== API SETUP ==========
 def check_api_connection():
@@ -226,6 +286,19 @@ is_connected = check_api_connection()
 with st.sidebar:
     st.markdown("# 📧 AI Email Assistant")
     st.caption("Write, reply, correct, and polish your emails.")
+    
+    st.divider()
+    
+    # ========== DARK/LIGHT TOGGLE ==========
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🌙 Dark", use_container_width=True):
+            st.session_state.theme = 'dark'
+            st.rerun()
+    with col2:
+        if st.button("☀️ Light", use_container_width=True):
+            st.session_state.theme = 'light'
+            st.rerun()
     
     st.divider()
     
@@ -649,13 +722,14 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== COPY BUTTON ==========
+        # ========== FIX: COPY BUTTON WORKING ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
                     pyperclip.copy(st.session_state.generated_email)
                     st.success("✅ Copied to clipboard!")
                 except Exception as e:
+                    # Fallback: Select text manually
                     st.warning("⚠️ Copy not available. Please select and copy manually.")
                     st.code(st.session_state.generated_email, language="text")
         
