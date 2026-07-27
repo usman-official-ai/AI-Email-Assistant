@@ -43,49 +43,70 @@ st.set_page_config(
     layout="wide"
 )
 
-# ========== CLEAN CSS ==========
+# ========== DARK THEME ==========
 st.markdown("""
 <style>
-/* Main */
-.stApp { background: #0a0a0f; }
-.stSidebar { background: #111118; border-right: 1px solid #1a1a2e; }
+.stApp { background: #0e1117; }
+.stSidebar { background: #1a1a2e; border-right: 1px solid #2a2a44; }
 
-/* All Text White */
+/* ALL TEXT WHITE */
 h1, h2, h3, h4, h5, h6, .stMarkdown, .stText, .stCaption,
 .stTextInput > label, .stSelectbox > label, .stTextArea > label,
 .stRadio > label { color: #ffffff !important; }
 
-/* Sidebar Text */
-.stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #ffffff !important; }
+/* SIDEBAR */
+.stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label,
+.stSidebar h1, .stSidebar h2, .stSidebar h3 { color: #ffffff !important; }
 
-/* Input Fields */
+/* INPUT FIELDS */
 .stTextArea > div > div > textarea {
     background: #1a1a2e !important;
     color: #ffffff !important;
     border: 1px solid #2a2a44 !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+}
+.stTextArea > div > div > textarea::placeholder {
+    color: #666 !important;
 }
 .stTextInput > div > div > input {
     background: #1a1a2e !important;
     color: #ffffff !important;
     border: 1px solid #2a2a44 !important;
-    border-radius: 12px !important;
-    padding: 14px 18px !important;
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
 }
 .stSelectbox > div > div > select {
     background: #1a1a2e !important;
     color: #ffffff !important;
     border: 1px solid #2a2a44 !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     padding: 12px 16px !important;
 }
 
-/* Buttons */
+/* RADIO BUTTONS */
+.stRadio > div {
+    display: flex !important;
+    gap: 8px !important;
+}
+.stRadio > div > label {
+    background: #1a1a2e !important;
+    color: #ffffff !important;
+    padding: 8px 20px !important;
+    border-radius: 8px !important;
+    border: 1px solid #2a2a44 !important;
+    font-size: 13px !important;
+}
+.stRadio > div > label:hover {
+    border-color: #ff4b4b !important;
+}
+
+/* PRIMARY BUTTONS */
 .stButton > button {
     background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
     color: white !important;
     border: none !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     padding: 12px 28px !important;
     font-weight: 600 !important;
     box-shadow: 0 4px 20px rgba(255, 75, 75, 0.25) !important;
@@ -96,28 +117,21 @@ h1, h2, h3, h4, h5, h6, .stMarkdown, .stText, .stCaption,
     box-shadow: 0 6px 30px rgba(255, 75, 75, 0.35) !important;
 }
 
-/* Radio Buttons - Horizontal */
-.stRadio > div {
-    display: flex !important;
-    gap: 10px !important;
+/* SIDEBAR BUTTONS */
+.stSidebar .stButton > button {
+    background: #2a2a44 !important;
+    color: white !important;
+    border: 1px solid #3a3a5c !important;
+    box-shadow: none !important;
+    padding: 10px 20px !important;
 }
-.stRadio > div > label {
-    background: #1a1a2e !important;
-    color: #ffffff !important;
-    padding: 8px 20px !important;
-    border-radius: 10px !important;
-    border: 1px solid #2a2a44 !important;
-    font-size: 14px !important;
-}
-.stRadio > div > label:hover {
+.stSidebar .stButton > button:hover {
+    background: #3a3a5c !important;
     border-color: #ff4b4b !important;
-}
-.stRadio > div > label[data-baseweb="radio"] input:checked + div {
-    background: #ff4b4b !important;
-    border-color: #ff4b4b !important;
+    transform: none !important;
 }
 
-/* Download Buttons */
+/* DOWNLOAD BUTTONS */
 .stDownloadButton > button {
     background: #1a1a2e !important;
     color: white !important;
@@ -126,22 +140,25 @@ h1, h2, h3, h4, h5, h6, .stMarkdown, .stText, .stCaption,
     padding: 10px 16px !important;
 }
 
-/* Divider */
-hr { border-color: #1a1a2e !important; margin: 15px 0 !important; }
-
-/* Output Box */
+/* OUTPUT BOX */
 .output-box {
-    background: #111118;
-    border: 1px solid #1a1a2e;
-    border-radius: 12px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a44;
+    border-radius: 10px;
     padding: 20px;
     margin: 10px 0;
-    min-height: 150px;
+    min-height: 200px;
+}
+.output-box .stMarkdown {
+    color: #e0e0e0 !important;
 }
 
-/* Scrollbar */
+/* DIVIDER */
+hr { border-color: #2a2a44 !important; margin: 15px 0 !important; }
+
+/* SCROLLBAR */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-track { background: #0e1117; }
 ::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 4px; }
 </style>
 """, unsafe_allow_html=True)
@@ -182,35 +199,66 @@ is_connected = check_api()
 
 # ========== SIDEBAR ==========
 with st.sidebar:
+    st.markdown("# 📧 AI Email Assistant")
+    st.caption("Write, reply, correct, and polish your emails.")
+    
+    st.divider()
+    
     st.markdown("### ⚙️ Settings")
-    st.markdown("---")
     
     st.markdown("**Tone**")
-    tone = st.selectbox("", ["Professional", "Friendly", "Formal", "Casual", "Persuasive"], label_visibility="collapsed")
+    tone = st.selectbox("", ["Professional", "Friendly", "Formal", "Casual", "Persuasive", "Confident", "Apologetic"], label_visibility="collapsed")
     
     st.markdown("**Length**")
     length = st.selectbox("", ["Medium", "Short", "Detailed"], label_visibility="collapsed")
     
-    st.markdown("---")
+    st.divider()
+    
     st.markdown("### 📝 Templates")
     
-    templates = {
-        "📧 Job": """Subject: Application for Position\n\nDear Hiring Manager,\n\nI am writing to apply for the position at your company. With my experience and skills, I believe I would be a valuable addition to your team.\n\nBest regards,\n[Your Name]""",
-        "🏖️ Leave": """Subject: Leave Request\n\nDear Manager,\n\nI am writing to request leave from [start date] to [end date]. Please approve my request.\n\nRegards,\n[Your Name]""",
-        "📄 Proposal": """Subject: Business Proposal\n\nDear [Name],\n\nI hope this email finds you well. I am writing to propose a collaboration between our companies.\n\nBest regards,\n[Your Name]"""
-    }
+    if st.button("📧 Job", use_container_width=True):
+        st.session_state.email_input = """Subject: Application for Position
+
+Dear Hiring Manager,
+
+I am writing to apply for the position at your company. With my experience and skills, I believe I would be a valuable addition to your team.
+
+Best regards,
+[Your Name]"""
+        st.rerun()
     
-    for name, content in templates.items():
-        if st.button(name, use_container_width=True):
-            st.session_state.email_input = content
-            st.rerun()
+    if st.button("🏖️ Leave", use_container_width=True):
+        st.session_state.email_input = """Subject: Leave Request
+
+Dear Manager,
+
+I am writing to request leave from [start date] to [end date]. Please approve my request.
+
+Regards,
+[Your Name]"""
+        st.rerun()
     
-    st.markdown("---")
+    if st.button("📄 Proposal", use_container_width=True):
+        st.session_state.email_input = """Subject: Business Proposal
+
+Dear [Name],
+
+I hope this email finds you well. I am writing to propose a collaboration between our companies.
+
+Best regards,
+[Your Name]"""
+        st.rerun()
+    
+    st.divider()
+    
     st.markdown("### 🔑 API Status")
     if is_connected:
         st.success("✅ Connected")
     else:
         st.error("❌ Not Connected")
+    
+    st.divider()
+    st.caption("Built with Streamlit + Groq")
 
 # ========== MAIN CONTENT ==========
 st.markdown("# 📧 AI Email Assistant")
@@ -228,6 +276,7 @@ mode = st.radio(
 
 left, right = st.columns([1, 1])
 
+# ========== LEFT COLUMN ==========
 with left:
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
@@ -264,10 +313,11 @@ with left:
             label_visibility="collapsed"
         )
         
+        st.markdown("**Reply Type**")
         reply_type = st.selectbox(
-            "Reply type",
+            "",
             ["General", "Accept Meeting", "Decline Politely", "Request More Info", "Thank You", "Follow-up"],
-            index=0
+            label_visibility="collapsed"
         )
         
         if st.button("↩️ Generate Reply", type="primary"):
@@ -297,7 +347,7 @@ with left:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("✅ Fix Grammar"):
+            if st.button("✅ Fix Grammar", use_container_width=True):
                 if not input_text.strip():
                     st.warning("Please paste an email first.")
                 else:
@@ -311,7 +361,7 @@ with left:
                             st.error(result)
         
         with col2:
-            if st.button("🎭 Change Tone"):
+            if st.button("🎭 Change Tone", use_container_width=True):
                 if not input_text.strip():
                     st.warning("Please paste an email first.")
                 else:
@@ -325,7 +375,7 @@ with left:
                             st.error(result)
         
         with col3:
-            if st.button("📏 Adjust Length"):
+            if st.button("📏 Adjust Length", use_container_width=True):
                 if not input_text.strip():
                     st.warning("Please paste an email first.")
                 else:
@@ -339,7 +389,7 @@ with left:
                             st.error(result)
         
         with col4:
-            if st.button("💡 Improve"):
+            if st.button("💡 Improve", use_container_width=True):
                 if not input_text.strip():
                     st.warning("Please paste an email first.")
                 else:
@@ -352,6 +402,7 @@ with left:
                         else:
                             st.error(result)
 
+# ========== RIGHT COLUMN ==========
 with right:
     st.markdown("### 📤 Output")
     
@@ -366,9 +417,9 @@ with right:
             if st.button("📋 Copy", use_container_width=True):
                 try:
                     pyperclip.copy(st.session_state.generated_email)
-                    st.success("✅ Copied!")
+                    st.success("✅ Copied to clipboard!")
                 except:
-                    st.warning("Select and copy manually.")
+                    st.warning("Please select and copy manually.")
         
         with col_b:
             st.download_button(
@@ -380,19 +431,32 @@ with right:
             )
         
         with col_c:
-            st.download_button(
-                label="📑 PDF",
-                data=st.session_state.generated_email,
-                file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+            try:
+                from src.utils.pdf_export import create_pdf
+                pdf_data = create_pdf(st.session_state.generated_email)
+                st.download_button(
+                    label="📑 PDF",
+                    data=pdf_data,
+                    file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except:
+                st.download_button(
+                    label="📑 PDF",
+                    data=st.session_state.generated_email,
+                    file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    disabled=True
+                )
         
-        if st.button("🔄 Clear", use_container_width=True):
+        if st.button("🔄 Clear Output", use_container_width=True):
             st.session_state.generated_email = ""
             st.rerun()
     else:
         st.info("Your generated or improved email will appear here.")
 
+# ========== FOOTER ==========
 st.divider()
-st.caption("⚠️ Always review AI-generated content before sending.")
+st.caption("⚠️ Always review AI-generated content before sending. This tool assists — it doesn't replace your judgment.")
