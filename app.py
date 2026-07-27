@@ -183,11 +183,19 @@ with left:
             label_visibility="collapsed"
         )
 
-        col1, col2 = st.columns(2)
-        with col1:
-            tone = st.selectbox("Tone", ["Professional", "Friendly", "Formal", "Casual", "Persuasive"], index=0)
-        with col2:
-            length = st.selectbox("Length", ["Medium", "Short", "Detailed"], index=0)
+        # ========== TONE (7 TYPES) ==========
+        tone = st.selectbox(
+            "Tone",
+            ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
+            index=0
+        )
+        
+        # ========== LENGTH (3 TYPES) ==========
+        length = st.selectbox(
+            "Length",
+            ["Short", "Medium", "Detailed"],
+            index=1
+        )
 
         if st.button("✨ Generate Email", type="primary", use_container_width=True):
             if not input_text.strip():
@@ -212,17 +220,26 @@ with left:
             label_visibility="collapsed"
         )
 
+        # ========== REPLY TYPES (5 TYPES) ==========
         reply_type = st.selectbox(
             "Reply type",
             ["General", "Accept Meeting", "Decline Politely", "Request More Info", "Thank You", "Follow-up"],
             index=0
         )
 
-        col1, col2 = st.columns(2)
-        with col1:
-            tone = st.selectbox("Tone", ["Professional", "Friendly", "Formal", "Casual", "Persuasive"], index=0, key="reply_tone")
-        with col2:
-            length = st.selectbox("Length", ["Medium", "Short", "Detailed"], index=0, key="reply_length")
+        tone = st.selectbox(
+            "Tone",
+            ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"],
+            index=0,
+            key="reply_tone"
+        )
+        
+        length = st.selectbox(
+            "Length",
+            ["Short", "Medium", "Detailed"],
+            index=1,
+            key="reply_length"
+        )
 
         if st.button("↩️ Generate Reply", type="primary", use_container_width=True):
             if not input_text.strip():
@@ -247,6 +264,9 @@ with left:
             label_visibility="collapsed"
         )
 
+        st.markdown("#### Actions")
+        
+        # ========== 4 ACTIONS ==========
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -269,6 +289,7 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Changing tone..."):
+                        tone = st.selectbox("Tone", ["Professional", "Formal", "Friendly", "Polite", "Confident", "Apologetic", "Persuasive"], index=0, key="edit_tone")
                         prompt = f"Rewrite this email in {tone} tone: {input_text}"
                         result = generate_email(prompt)
                         if not result.startswith("❌"):
@@ -283,6 +304,7 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Adjusting length..."):
+                        length = st.selectbox("Length", ["Short", "Medium", "Detailed"], index=1, key="edit_length")
                         prompt = f"Rewrite this email in {length} length: {input_text}"
                         result = generate_email(prompt)
                         if not result.startswith("❌"):
@@ -304,17 +326,17 @@ with left:
                             st.rerun()
                         else:
                             st.error(result)
-
+    
     # ========== SUBJECT LINE GENERATOR ==========
     st.divider()
     st.markdown("### 🏷️ Subject Line Generator")
-    if st.button("Generate Subject Lines", use_container_width=True):
+    if st.button("Generate Subject Lines (3-5)", use_container_width=True):
         source_text = st.session_state.generated_email or input_text if 'input_text' in locals() else ""
         if not source_text.strip():
             st.warning("Generate or paste an email first.")
         else:
             with st.spinner("Generating subject lines..."):
-                prompt = f"Generate 5 subject lines for: {source_text}"
+                prompt = f"Generate 5 professional subject lines for this email: {source_text}"
                 result = generate_email(prompt)
                 if not result.startswith("❌"):
                     st.session_state.generated_email = result
@@ -332,6 +354,7 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
+        # ========== COPY FEATURE ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
@@ -340,6 +363,7 @@ with right:
                 except:
                     st.warning("Please select and copy manually.")
         
+        # ========== TXT EXPORT ==========
         with col_b:
             st.download_button(
                 label="📄 TXT",
@@ -349,6 +373,7 @@ with right:
                 use_container_width=True
             )
         
+        # ========== PDF EXPORT ==========
         with col_c:
             try:
                 from src.utils.pdf_export import create_pdf
