@@ -24,8 +24,6 @@ if 'api_call_count' not in st.session_state:
     st.session_state.api_call_count = 0
 if 'last_api_call' not in st.session_state:
     st.session_state.last_api_call = 0
-if 'template_key' not in st.session_state:
-    st.session_state.template_key = 0
 if 'copy_success' not in st.session_state:
     st.session_state.copy_success = False
 
@@ -181,7 +179,6 @@ def check_api_connection():
 
 def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
     try:
-        # Rate limit protection with automatic retry
         if retry_count > 0:
             time.sleep(retry_count * 2)
         
@@ -198,7 +195,6 @@ def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         elif response.status_code == 429 and retry_count < 3:
-            # Silent retry - no message shown
             return call_groq_api(prompt, model, retry_count + 1)
         elif response.status_code == 401:
             return "❌ Invalid API Key!"
@@ -239,7 +235,7 @@ with st.sidebar:
     
     st.markdown("### 📝 Templates")
     
-    # ========== TEMPLATES - FIXED ==========
+    # ========== TEMPLATES - SIMPLE AND WORKING ==========
     templates = {
         "📧 Job": """Subject: Application for Position
 
@@ -290,7 +286,7 @@ Best regards,
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_input = content
-            st.session_state.template_key += 1
+            st.session_state.template_clicked = True
             st.rerun()
     
     st.divider()
@@ -337,12 +333,12 @@ with left:
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         
-        # ========== FIX: Using template_key to refresh ==========
+        # ========== FIX: Use the session state value directly ==========
         input_text = st.text_area(
             "Describe the topic, purpose, or bullet points for your email",
             height=150,
             placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
-            key=f"input_new_{st.session_state.template_key}",
+            key="input_new",
             value=st.session_state.email_input
         )
 
@@ -387,7 +383,7 @@ Email:"""
             "Original email",
             height=150,
             placeholder="Paste the email you received here...",
-            key=f"input_reply_{st.session_state.template_key}",
+            key="input_reply",
             value=st.session_state.email_input
         )
 
@@ -441,7 +437,7 @@ Reply:"""
             "Your email draft",
             height=150,
             placeholder="Paste your draft email here...",
-            key=f"input_edit_{st.session_state.template_key}",
+            key="input_edit",
             value=st.session_state.email_input
         )
 
