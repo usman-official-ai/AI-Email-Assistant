@@ -24,8 +24,6 @@ if 'api_call_count' not in st.session_state:
     st.session_state.api_call_count = 0
 if 'last_api_call' not in st.session_state:
     st.session_state.last_api_call = 0
-if 'copy_success' not in st.session_state:
-    st.session_state.copy_success = False
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -233,64 +231,6 @@ with st.sidebar:
     
     st.divider()
     
-    st.markdown("### 📝 Templates")
-    
-    # ========== TEMPLATES - SIMPLE AND WORKING ==========
-    templates = {
-        "📧 Job": """Subject: Application for Position
-
-Dear Hiring Manager,
-
-I am writing to apply for the position at your company. With my experience and skills, I believe I would be a valuable addition to your team.
-
-Best regards,
-[Your Name]""",
-        "🏖️ Leave": """Subject: Leave Request
-
-Dear Manager,
-
-I am writing to request leave from [start date] to [end date]. Please approve my request.
-
-Regards,
-[Your Name]""",
-        "📄 Proposal": """Subject: Business Proposal
-
-Dear [Name],
-
-I hope this email finds you well. I am writing to propose a collaboration between our companies.
-
-Best regards,
-[Your Name]""",
-        "🙏 Thank You": """Subject: Thank You
-
-Dear [Name],
-
-I wanted to express my sincere gratitude for your support and guidance.
-
-Thank you once again.
-
-Best regards,
-[Your Name]""",
-        "👋 Follow-up": """Subject: Follow-up
-
-Dear [Name],
-
-I hope this email finds you well. I am writing to follow up on our previous conversation.
-
-Looking forward to your response.
-
-Best regards,
-[Your Name]"""
-    }
-    
-    for name, content in templates.items():
-        if st.button(name, use_container_width=True):
-            st.session_state.email_input = content
-            st.session_state.template_clicked = True
-            st.rerun()
-    
-    st.divider()
-    
     st.markdown("### 📜 Email History")
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state.email_history = []
@@ -333,7 +273,6 @@ with left:
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         
-        # ========== FIX: Use the session state value directly ==========
         input_text = st.text_area(
             "Describe the topic, purpose, or bullet points for your email",
             height=150,
