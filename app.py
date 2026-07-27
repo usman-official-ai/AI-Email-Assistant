@@ -26,6 +26,8 @@ if 'api_call_count' not in st.session_state:
     st.session_state.api_call_count = 0
 if 'last_api_call' not in st.session_state:
     st.session_state.last_api_call = 0
+if 'template_clicked' not in st.session_state:
+    st.session_state.template_clicked = False
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -67,53 +69,40 @@ st.markdown("""
 <style>
 .stApp { background: #f5f5f7; }
 .stSidebar { background: #ffffff; border-right: 1px solid #e0e0e0; }
-
-/* ALL TEXT BLACK */
 h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !important; }
 .stApp, .stMarkdown, .stText, .stCaption, .stInfo, .stSuccess, .stWarning, .stError,
 .stTextInput > label, .stSelectbox > label, .stTextArea > label,
 .stRadio > label, .stCheckbox > label { color: #1a1a1a !important; }
-
-/* SIDEBAR */
 .stSidebar .stMarkdown, .stSidebar .stText, .stSidebar label { color: #1a1a1a !important; }
 .stSidebar h1, .stSidebar h2, .stSidebar h3 { color: #1a1a1a !important; }
-
-/* INPUT FIELDS */
 .stTextInput > div > div > input {
     background: #ffffff !important; color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
     padding: 14px 18px !important;
 }
-.stTextInput > div > div > input::placeholder {
-    color: #999 !important;
-}
+.stTextInput > div > div > input::placeholder { color: #999 !important; }
 .stTextArea > div > div > textarea {
     background: #ffffff !important; color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
 }
-.stTextArea > div > div > textarea::placeholder {
-    color: #999 !important;
-}
+.stTextArea > div > div > textarea::placeholder { color: #999 !important; }
 .stSelectbox > div > div > select {
     background: #ffffff !important; color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important; border-radius: 12px !important;
     padding: 12px 16px !important;
 }
-
-/* BUTTONS */
 .stButton > button {
     background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
     color: white !important; border: none !important;
     border-radius: 12px !important; padding: 12px 28px !important;
     font-weight: 600 !important;
     box-shadow: 0 4px 15px rgba(255, 75, 75, 0.2) !important;
+    width: 100%;
 }
 .stButton > button:hover {
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 25px rgba(255, 75, 75, 0.3) !important;
 }
-
-/* SIDEBAR BUTTONS */
 .stSidebar .stButton > button {
     background: #f0f0f0 !important;
     color: #1a1a1a !important;
@@ -125,14 +114,10 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !impo
     border-color: #ff4b4b !important;
     transform: none !important;
 }
-
-/* DOWNLOAD BUTTONS */
 .stDownloadButton > button {
     background: #f0f0f0 !important; color: #1a1a1a !important;
     border: 1px solid #d0d0d0 !important; border-radius: 10px !important;
 }
-
-/* TABS */
 .stTabs [data-baseweb="tab-list"] {
     background: #f0f0f0 !important; border-radius: 12px !important;
     padding: 4px !important; border: 1px solid #e0e0e0 !important;
@@ -142,26 +127,14 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !impo
     background: linear-gradient(135deg, #ff4b4b, #ff6b6b) !important;
     color: #ffffff !important;
 }
-
-/* EXPANDER */
 .stExpander { background: #ffffff !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
 .stExpander .streamlit-expanderHeader { color: #1a1a1a !important; }
-
-/* METRIC */
 .stMetric { background: #ffffff !important; border-radius: 12px !important; padding: 14px !important; border: 1px solid #e0e0e0 !important; }
 .stMetric label { color: #666 !important; }
 .stMetric .stMarkdown { color: #1a1a1a !important; }
-
-/* DIVIDER */
 hr { border-color: #e0e0e0 !important; }
-
-/* CAPTION */
 .stCaption { color: #888 !important; }
-
-/* INFO */
 .stInfo { background: rgba(0,0,0,0.02) !important; border: 1px solid #e0e0e0 !important; border-radius: 12px !important; }
-
-/* OUTPUT BOX */
 .output-box { 
     background: #ffffff; 
     border: 1px solid #e0e0e0; 
@@ -170,16 +143,10 @@ hr { border-color: #e0e0e0 !important; }
     margin: 10px 0; 
     min-height: 150px;
 }
-.output-box .stMarkdown {
-    color: #1a1a1a !important;
-}
-
-/* SCROLLBAR */
+.output-box .stMarkdown { color: #1a1a1a !important; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f5f5f7; }
 ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 4px; }
-
-/* RADIO BUTTONS */
 .stRadio > div {
     display: flex !important;
     gap: 8px !important;
@@ -192,25 +159,10 @@ hr { border-color: #e0e0e0 !important; }
     border: 1px solid #d0d0d0 !important;
     font-size: 13px !important;
 }
-.stRadio > div > label:hover {
-    border-color: #ff4b4b !important;
-}
+.stRadio > div > label:hover { border-color: #ff4b4b !important; }
 .stRadio > div > label[data-baseweb="radio"] input:checked + div {
     background: #ff4b4b !important;
     border-color: #ff4b4b !important;
-}
-
-/* SELECT BOX */
-.stSelectbox > div > div > select {
-    background: #ffffff !important;
-    color: #1a1a1a !important;
-    border: 1px solid #d0d0d0 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-}
-.stSelectbox > div > div > select option {
-    background: #ffffff !important;
-    color: #1a1a1a !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -386,6 +338,7 @@ Best regards,
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_input = content
+            st.session_state.template_clicked = True
             st.rerun()
     
     st.divider()
@@ -437,8 +390,11 @@ with left:
             height=150,
             placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
             key="input_new",
-            value=st.session_state.email_input if st.session_state.email_input else ""
+            value=st.session_state.email_input if st.session_state.template_clicked else ""
         )
+        
+        if st.session_state.template_clicked:
+            st.session_state.template_clicked = False
 
         col_tone, col_length = st.columns(2)
         with col_tone:
@@ -481,8 +437,11 @@ Email:"""
             height=150,
             placeholder="Paste the email you received here...",
             key="input_reply",
-            value=st.session_state.email_input if st.session_state.email_input else ""
+            value=st.session_state.email_input if st.session_state.template_clicked else ""
         )
+        
+        if st.session_state.template_clicked:
+            st.session_state.template_clicked = False
 
         reply_type = st.selectbox(
             "Reply type",
@@ -534,8 +493,11 @@ Reply:"""
             height=150,
             placeholder="Paste your draft email here...",
             key="input_edit",
-            value=st.session_state.email_input if st.session_state.email_input else ""
+            value=st.session_state.email_input if st.session_state.template_clicked else ""
         )
+        
+        if st.session_state.template_clicked:
+            st.session_state.template_clicked = False
 
         st.markdown("#### Actions")
         col1, col2, col3, col4 = st.columns(4)
@@ -736,9 +698,10 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== COPY BUTTON ==========
+        # ========== COPY BUTTON - WORKING ==========
         with col_a:
-            if st.button("📋 Copy", use_container_width=True):
+            copy_clicked = st.button("📋 Copy", use_container_width=True)
+            if copy_clicked:
                 try:
                     pyperclip.copy(st.session_state.generated_email)
                     st.success("✅ Copied to clipboard!")
@@ -767,7 +730,14 @@ with right:
                     use_container_width=True
                 )
             except:
-                st.button("📑 PDF", disabled=True, use_container_width=True)
+                st.download_button(
+                    label="📑 PDF",
+                    data=st.session_state.generated_email,
+                    file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    disabled=True
+                )
         
         if st.button("🔄 Clear Output", use_container_width=True):
             st.session_state.generated_email = ""
