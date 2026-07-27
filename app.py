@@ -1,9 +1,7 @@
 import streamlit as st
 import os
 import time
-import json
 from datetime import datetime
-from io import BytesIO
 import requests
 import pyperclip
 
@@ -26,8 +24,6 @@ if 'api_call_count' not in st.session_state:
     st.session_state.api_call_count = 0
 if 'last_api_call' not in st.session_state:
     st.session_state.last_api_call = 0
-if 'template_clicked' not in st.session_state:
-    st.session_state.template_clicked = False
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -97,7 +93,6 @@ h1, h2, h3, h4, h5, h6, .stTitle, .stHeader, .stSubheader { color: #1a1a1a !impo
     border-radius: 12px !important; padding: 12px 28px !important;
     font-weight: 600 !important;
     box-shadow: 0 4px 15px rgba(255, 75, 75, 0.2) !important;
-    width: 100%;
 }
 .stButton > button:hover {
     transform: translateY(-2px) !important;
@@ -198,15 +193,6 @@ def check_api_connection():
     return st.session_state.groq_available
 
 def call_groq_api(prompt, model="llama-3.1-8b-instant"):
-    current_time = time.time()
-    if current_time - st.session_state.last_api_call < 3:
-        st.warning("⏳ Please wait a few seconds between requests.")
-        return None
-    
-    if st.session_state.api_call_count > 30:
-        st.warning("⚠️ Too many API calls. Please refresh the app.")
-        return None
-    
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -233,9 +219,6 @@ def call_groq_api(prompt, model="llama-3.1-8b-instant"):
         }
         
         response = requests.post(url, headers=headers, json=data, timeout=60)
-        
-        st.session_state.last_api_call = time.time()
-        st.session_state.api_call_count += 1
         
         if response.status_code == 200:
             result = response.json()
@@ -288,6 +271,7 @@ with st.sidebar:
     
     st.markdown("### 📝 Templates")
     
+    # ========== TEMPLATES WITH SESSION STATE ==========
     templates = {
         "📧 Job": """Subject: Application for Position
 
@@ -338,7 +322,6 @@ Best regards,
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_input = content
-            st.session_state.template_clicked = True
             st.rerun()
     
     st.divider()
@@ -358,7 +341,6 @@ Best regards,
     st.markdown("### 🔑 API Status")
     if is_connected:
         st.success("✅ Connected")
-        st.caption(f"Calls: {st.session_state.api_call_count}")
     else:
         st.error("❌ Not Connected")
     
@@ -385,16 +367,14 @@ with left:
     # ========== WRITE MODE ==========
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
+        
         input_text = st.text_area(
             "Describe the topic, purpose, or bullet points for your email",
             height=150,
             placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
             key="input_new",
-            value=st.session_state.email_input if st.session_state.template_clicked else ""
+            value=st.session_state.email_input
         )
-        
-        if st.session_state.template_clicked:
-            st.session_state.template_clicked = False
 
         col_tone, col_length = st.columns(2)
         with col_tone:
@@ -432,16 +412,14 @@ Email:"""
     # ========== REPLY MODE ==========
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
+        
         input_text = st.text_area(
             "Original email",
             height=150,
             placeholder="Paste the email you received here...",
             key="input_reply",
-            value=st.session_state.email_input if st.session_state.template_clicked else ""
+            value=st.session_state.email_input
         )
-        
-        if st.session_state.template_clicked:
-            st.session_state.template_clicked = False
 
         reply_type = st.selectbox(
             "Reply type",
@@ -488,16 +466,14 @@ Reply:"""
     # ========== IMPROVE MODE ==========
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
+        
         input_text = st.text_area(
             "Your email draft",
             height=150,
             placeholder="Paste your draft email here...",
             key="input_edit",
-            value=st.session_state.email_input if st.session_state.template_clicked else ""
+            value=st.session_state.email_input
         )
-        
-        if st.session_state.template_clicked:
-            st.session_state.template_clicked = False
 
         st.markdown("#### Actions")
         col1, col2, col3, col4 = st.columns(4)
@@ -700,8 +676,7 @@ with right:
         
         # ========== COPY BUTTON - WORKING ==========
         with col_a:
-            copy_clicked = st.button("📋 Copy", use_container_width=True)
-            if copy_clicked:
+            if st.button("📋 Copy", use_container_width=True):
                 try:
                     pyperclip.copy(st.session_state.generated_email)
                     st.success("✅ Copied to clipboard!")
@@ -730,14 +705,7 @@ with right:
                     use_container_width=True
                 )
             except:
-                st.download_button(
-                    label="📑 PDF",
-                    data=st.session_state.generated_email,
-                    file_name=f"email_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    disabled=True
-                )
+                st.button("📑 PDF", disabled=True, use_container_width=True)
         
         if st.button("🔄 Clear Output", use_container_width=True):
             st.session_state.generated_email = ""
