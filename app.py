@@ -327,6 +327,7 @@ st.markdown("Write, reply, correct, and polish your emails in seconds.")
 if not is_connected:
     st.warning("⚠️ API not connected. Please check your GROQ_API_KEY.")
 
+# ========== MODE SELECTION ==========
 mode = st.radio(
     "What do you want to do?",
     ["Write a new email", "Reply to an email", "Improve / edit an existing email"],
@@ -336,6 +337,7 @@ mode = st.radio(
 left, right = st.columns([1, 1])
 
 with left:
+    # ========== WRITE MODE ==========
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         input_text = st.text_area(
@@ -379,6 +381,7 @@ Email:"""
                     elif result:
                         st.error(result)
 
+    # ========== REPLY MODE ==========
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
         input_text = st.text_area(
@@ -431,6 +434,7 @@ Reply:"""
                     elif result:
                         st.error(result)
 
+    # ========== IMPROVE MODE ==========
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
         input_text = st.text_area(
@@ -534,8 +538,8 @@ Suggestions:"""
                         elif result:
                             st.error(result)
     
+    # ========== SUBJECT LINE GENERATOR ==========
     st.divider()
-    
     st.markdown("### 🏷️ Subject Line Generator")
     if st.button("Generate Subject Lines (3-5)", use_container_width=True):
         source_text = st.session_state.generated_email or input_text if 'input_text' in locals() else ""
@@ -557,6 +561,7 @@ Suggestions:"""
                 elif result:
                     st.error(result)
     
+    # ========== TRANSLATION ==========
     st.markdown("### 🌐 Translate Email")
     col_trans1, col_trans2 = st.columns([2, 1])
     with col_trans1:
@@ -591,6 +596,7 @@ Suggestions:"""
                     elif result:
                         st.error(result)
     
+    # ========== SENTIMENT ANALYSIS ==========
     st.markdown("### 📊 Sentiment Analysis")
     sentiment_input = st.text_area(
         "Email to analyze:",
@@ -636,15 +642,14 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== FIX: COPY BUTTON WITH PYPERCLIP ==========
+        # ========== COPY BUTTON FIXED ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
                     pyperclip.copy(st.session_state.generated_email)
                     st.success("✅ Copied to clipboard!")
-                except Exception as e:
-                    # Fallback: Show code block to copy manually
-                    st.warning("⚠️ Copy not available. Please select and copy manually.")
+                except:
+                    st.warning("⚠️ Please select and copy manually.")
                     st.code(st.session_state.generated_email, language="text")
         
         with col_b:
