@@ -4,7 +4,6 @@ import time
 from datetime import datetime
 import requests
 import pyperclip
-import json
 
 # ========== SESSION STATE ==========
 if 'generated_email' not in st.session_state:
@@ -150,10 +149,8 @@ def check_api():
     st.session_state.api_checked = True
     return st.session_state.groq_available
 
-# ========== FIX: QUICK API CALL WITH RATE LIMIT HANDLING ==========
 def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
     try:
-        # Rate limit: 1 second gap between requests
         current_time = time.time()
         time_since_last = current_time - st.session_state.last_request_time
         if time_since_last < 1.0:
@@ -277,11 +274,10 @@ with left:
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         input_text = st.text_area(
-            "",
+            "Describe the topic, purpose, or bullet points for your email",
             height=150,
             placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
-            key="input_new",
-            label_visibility="collapsed"
+            key="input_new"
         )
 
         col_tone, col_length = st.columns(2)
@@ -322,11 +318,10 @@ Email:"""
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
         input_text = st.text_area(
-            "",
+            "Original email",
             height=150,
             placeholder="Paste the email you received here...",
-            key="input_reply",
-            label_visibility="collapsed"
+            key="input_reply"
         )
 
         reply_type = st.selectbox(
@@ -378,11 +373,10 @@ Reply:"""
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
         input_text = st.text_area(
-            "",
+            "Your email draft",
             height=150,
             placeholder="Paste your draft email here...",
-            key="input_edit",
-            label_visibility="collapsed"
+            key="input_edit"
         )
 
         st.markdown("#### Actions")
