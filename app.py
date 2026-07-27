@@ -24,8 +24,10 @@ if 'api_call_count' not in st.session_state:
     st.session_state.api_call_count = 0
 if 'last_api_call' not in st.session_state:
     st.session_state.last_api_call = 0
-if 'input_key' not in st.session_state:
-    st.session_state.input_key = 0
+if 'template_key' not in st.session_state:
+    st.session_state.template_key = 0
+if 'copy_success' not in st.session_state:
+    st.session_state.copy_success = False
 
 # ========== SECRETS + .ENV SUPPORT ==========
 def get_api_key():
@@ -46,7 +48,12 @@ def get_api_key():
 GROQ_API_KEY = get_api_key()
 
 if not GROQ_API_KEY:
-    st.error("❌ GROQ_API_KEY not found! Add to .env or Secrets.")
+    st.error("""
+    ❌ **GROQ_API_KEY not found!**
+    
+    **For Cloud:** Add secrets in Streamlit Cloud dashboard
+    **For Local:** Create `.env` file with `GROQ_API_KEY=your_key_here`
+    """)
     st.stop()
 
 st.set_page_config(
@@ -172,26 +179,34 @@ def check_api_connection():
     st.session_state.api_checked = True
     return st.session_state.groq_available
 
-def call_groq_api(prompt, model="llama-3.1-8b-instant"):
+def call_groq_api(prompt, model="llama-3.1-8b-instant", retry_count=0):
     try:
+        # Rate limit protection with automatic retry
+        if retry_count > 0:
+            time.sleep(retry_count * 2)
+        
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
         data = {
             "model": model,
-            "messages": [{"role": "system", "content": "You are a professional email assistant."}, {"role": "user", "content": prompt}],
+            "messages": [{"role": "system", "content": "You are a professional email assistant with expertise in business communication."}, {"role": "user", "content": prompt}],
             "temperature": 0.7,
             "max_tokens": 2048
         }
         response = requests.post(url, headers=headers, json=data, timeout=60)
+        
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
-        elif response.status_code == 429:
-            return "❌ Rate limit exceeded! Please wait 5-10 minutes."
+        elif response.status_code == 429 and retry_count < 3:
+            # Silent retry - no message shown
+            return call_groq_api(prompt, model, retry_count + 1)
         elif response.status_code == 401:
             return "❌ Invalid API Key!"
         else:
             return f"❌ API Error: {response.status_code}"
     except Exception as e:
+        if retry_count < 3:
+            return call_groq_api(prompt, model, retry_count + 1)
         return f"❌ Error: {str(e)}"
 
 def generate_with_groq(prompt):
@@ -208,6 +223,7 @@ is_connected = check_api_connection()
 with st.sidebar:
     st.markdown("# 📧 AI Email Assistant")
     st.caption("Write, reply, correct, and polish your emails.")
+    
     st.divider()
     
     st.markdown("### 🤖 Model")
@@ -223,7 +239,7 @@ with st.sidebar:
     
     st.markdown("### 📝 Templates")
     
-    # ========== TEMPLATES - USING SESSION STATE + RERUN ==========
+    # ========== TEMPLATES - FIXED ==========
     templates = {
         "📧 Job": """Subject: Application for Position
 
@@ -274,7 +290,7 @@ Best regards,
     for name, content in templates.items():
         if st.button(name, use_container_width=True):
             st.session_state.email_input = content
-            st.session_state.input_key += 1
+            st.session_state.template_key += 1
             st.rerun()
     
     st.divider()
@@ -283,6 +299,7 @@ Best regards,
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state.email_history = []
         st.rerun()
+    
     if st.session_state.email_history:
         st.caption(f"📊 {len(st.session_state.email_history)} entries")
         for entry in st.session_state.email_history[-5:]:
@@ -295,6 +312,7 @@ Best regards,
         st.success("✅ Connected")
     else:
         st.error("❌ Not Connected")
+    
     st.divider()
     st.caption("Built with Streamlit + Groq")
 
@@ -305,6 +323,7 @@ st.markdown("Write, reply, correct, and polish your emails in seconds.")
 if not is_connected:
     st.warning("⚠️ API not connected. Please check your GROQ_API_KEY.")
 
+# ========== MODE SELECTION ==========
 mode = st.radio(
     "What do you want to do?",
     ["Write a new email", "Reply to an email", "Improve / edit an existing email"],
@@ -314,15 +333,16 @@ mode = st.radio(
 left, right = st.columns([1, 1])
 
 with left:
+    # ========== WRITE MODE ==========
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         
-        # ========== FIX: Using key to force refresh ==========
+        # ========== FIX: Using template_key to refresh ==========
         input_text = st.text_area(
             "Describe the topic, purpose, or bullet points for your email",
             height=150,
             placeholder="e.g. Ask my manager for 2 days of leave next week for a family event...",
-            key=f"input_new_{st.session_state.input_key}",
+            key=f"input_new_{st.session_state.template_key}",
             value=st.session_state.email_input
         )
 
@@ -337,7 +357,15 @@ with left:
                 st.warning("Please describe what the email should be about.")
             else:
                 with st.spinner("Drafting your email..."):
-                    prompt = f"Write a professional email with {tone} tone and {length} length about: {input_text}"
+                    prompt = f"""Write a professional email based on the following description.
+
+Topic: {input_text}
+Tone: {tone}
+Length: {length}
+
+Write a complete email with subject line, greeting, body, and sign-off.
+
+Email:"""
                     result = generate_with_groq(prompt)
                     if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
@@ -351,6 +379,7 @@ with left:
                     elif result:
                         st.error(result)
 
+    # ========== REPLY MODE ==========
     elif mode == "Reply to an email":
         st.markdown("### 📨 Paste the email you're replying to")
         
@@ -358,7 +387,7 @@ with left:
             "Original email",
             height=150,
             placeholder="Paste the email you received here...",
-            key=f"input_reply_{st.session_state.input_key}",
+            key=f"input_reply_{st.session_state.template_key}",
             value=st.session_state.email_input
         )
 
@@ -379,7 +408,18 @@ with left:
                 st.warning("Please paste the original email first.")
             else:
                 with st.spinner("Writing your reply..."):
-                    prompt = f"Write a {reply_type} reply with {tone} tone and {length} length for: {input_text}"
+                    prompt = f"""Write a reply to the following email.
+
+Original email:
+{input_text}
+
+Reply type: {reply_type}
+Tone: {tone}
+Length: {length}
+
+Write a complete email reply.
+
+Reply:"""
                     result = generate_with_groq(prompt)
                     if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
@@ -393,6 +433,7 @@ with left:
                     elif result:
                         st.error(result)
 
+    # ========== IMPROVE MODE ==========
     else:
         st.markdown("### 🛠️ Paste the email you want to improve")
         
@@ -400,7 +441,7 @@ with left:
             "Your email draft",
             height=150,
             placeholder="Paste your draft email here...",
-            key=f"input_edit_{st.session_state.input_key}",
+            key=f"input_edit_{st.session_state.template_key}",
             value=st.session_state.email_input
         )
 
@@ -413,7 +454,7 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Fixing grammar..."):
-                        prompt = f"Fix all grammar errors in this email: {input_text}"
+                        prompt = f"Fix all grammar, spelling, and punctuation errors in this email. Return only the corrected version:\n\n{input_text}"
                         result = generate_with_groq(prompt)
                         if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
@@ -433,7 +474,7 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Changing tone..."):
-                        prompt = f"Rewrite this email in {tone} tone: {input_text}"
+                        prompt = f"Rewrite this email in a professional tone. Keep the core message but adjust the language:\n\n{input_text}"
                         result = generate_with_groq(prompt)
                         if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
@@ -453,14 +494,14 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Adjusting length..."):
-                        prompt = f"Rewrite this email in {length} length: {input_text}"
+                        prompt = f"Create a medium-length version of this email. Keep it balanced (about 60-70% of original):\n\n{input_text}"
                         result = generate_with_groq(prompt)
                         if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
                             st.session_state.current_action = "medium"
                             st.session_state.email_history.insert(0, {
                                 "timestamp": datetime.now().strftime("%H:%M"),
-                                "action": "Adjust Length",
+                                "action": "Medium Length",
                                 "content": result[:100] + "..."
                             })
                             st.rerun()
@@ -473,7 +514,17 @@ with left:
                     st.warning("Please paste an email first.")
                 else:
                     with st.spinner("Analyzing..."):
-                        prompt = f"Suggest improvements for this email: {input_text}"
+                        prompt = f"""Provide improvement suggestions for this email including:
+1. Grammar and spelling
+2. Readability and clarity
+3. Tone appropriateness
+4. Missing information
+5. Professional wording recommendations
+
+Email:
+{input_text}
+
+Suggestions:"""
                         result = generate_with_groq(prompt)
                         if result and not result.startswith("❌"):
                             st.session_state.generated_email = result
@@ -487,6 +538,7 @@ with left:
                         elif result:
                             st.error(result)
     
+    # ========== ADDITIONAL FEATURES ==========
     st.divider()
     
     # ========== SUBJECT LINE GENERATOR ==========
@@ -497,7 +549,7 @@ with left:
             st.warning("Generate or paste an email first.")
         else:
             with st.spinner("Generating subject lines..."):
-                prompt = f"Generate 5 professional subject lines for this email: {source_text}"
+                prompt = f"Generate 5 professional subject lines for this email. Return only the subject lines, one per line:\n\n{source_text}"
                 result = generate_with_groq(prompt)
                 if result and not result.startswith("❌"):
                     st.session_state.generated_email = result
@@ -532,7 +584,7 @@ with left:
                 st.warning("Please paste an email to translate.")
             else:
                 with st.spinner(f"Translating to {lang}..."):
-                    prompt = f"Translate this email to {lang}: {translate_input}"
+                    prompt = f"Translate this email to {lang}. Maintain the professional tone and meaning:\n\n{translate_input}"
                     result = generate_with_groq(prompt)
                     if result and not result.startswith("❌"):
                         st.session_state.generated_email = result
@@ -559,7 +611,16 @@ with left:
             st.warning("Please paste an email to analyze.")
         else:
             with st.spinner("Analyzing sentiment..."):
-                prompt = f"Analyze sentiment of this email: {sentiment_input}"
+                prompt = f"""Analyze the sentiment of this email and provide:
+1. Overall sentiment (Positive/Negative/Neutral)
+2. Emotional tone
+3. Key emotional indicators
+4. Suggested response approach
+
+Email:
+{sentiment_input}
+
+Sentiment Analysis:"""
                 result = generate_with_groq(prompt)
                 if result and not result.startswith("❌"):
                     st.session_state.generated_email = result
@@ -583,7 +644,7 @@ with right:
         
         col_a, col_b, col_c = st.columns(3)
         
-        # ========== COPY BUTTON ==========
+        # ========== COPY BUTTON - WORKING ==========
         with col_a:
             if st.button("📋 Copy", use_container_width=True):
                 try:
@@ -623,5 +684,6 @@ with right:
     else:
         st.info("Your generated or improved email will appear here.")
 
+# ========== FOOTER ==========
 st.divider()
-st.caption("⚠️ Always review AI-generated content before sending.")
+st.caption("⚠️ Always review AI-generated content before sending. This tool assists — it doesn't replace your judgment.")
