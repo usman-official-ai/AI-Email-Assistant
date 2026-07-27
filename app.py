@@ -271,7 +271,10 @@ with st.sidebar:
     
     st.markdown("### 📝 Templates")
     
-    # ========== TEMPLATES WITH SESSION STATE ==========
+    # ========== TEMPLATES - FIXED ==========
+    def set_template(content):
+        st.session_state.email_input = content
+    
     templates = {
         "📧 Job": """Subject: Application for Position
 
@@ -368,6 +371,7 @@ with left:
     if mode == "Write a new email":
         st.markdown("### ✍️ What's the email about?")
         
+        # ========== FIX: Direct value from session state ==========
         input_text = st.text_area(
             "Describe the topic, purpose, or bullet points for your email",
             height=150,
@@ -681,7 +685,7 @@ with right:
                     pyperclip.copy(st.session_state.generated_email)
                     st.success("✅ Copied to clipboard!")
                 except:
-                    st.warning("⚠️ Please select and copy manually.")
+                    st.warning("⚠️ Copy not available. Please select and copy manually.")
                     st.code(st.session_state.generated_email, language="text")
         
         with col_b:
